@@ -185,7 +185,13 @@ Application will start on `http://localhost:8080`
 
 3. **Dashboard:**
    - Navigate to `http://localhost:8080/dashboard`
-   - View spending analytics by category
+   - View 6-month category comparison bar chart
+   - View spending analytics and recent transactions
+   
+4. **Transaction Dashboard (Filtered):**
+   - Navigate to `http://localhost:8080/transactions/dashboard`
+   - Filter by year and user
+   - View category-wise month comparison
 
 ---
 
@@ -356,26 +362,33 @@ cat reports/top_keywords_per_class_*.json
 ## 📁 Project Structure
 
 ```
-budgetbuddy/
+budgetbuddy-ai/
 ├── src/main/java/com/budgetbuddy/
-│   ├── controller/          # Spring Boot controllers
-│   ├── service/            # Business logic
-│   ├── model/              # JPA entities
-│   └── repository/         # Data access
+│   ├── controller/          # Spring Boot controllers (Dashboard, Transaction, etc.)
+│   ├── service/            # Business logic (TransactionService, etc.)
+│   ├── model/              # JPA entities (Transaction, User, CategoryKeyword)
+│   ├── repository/         # Data access layer
+│   └── config/             # Configuration (AppConfig)
 ├── src/main/resources/
 │   ├── templates/          # Thymeleaf HTML templates
+│   │   ├── layouts/       # Master layout templates
+│   │   ├── transaction/   # Transaction management templates
+│   │   ├── categories/    # Category management templates
+│   │   └── dashboard_latest.html  # Main dashboard
 │   └── static/             # CSS, JS assets
-├── mybudget-ai/
+├── mybudget-ai/            # ML Service
 │   ├── app.py              # Flask API server
 │   ├── train_model.py      # Training pipeline
 │   ├── create_synthetic_dataset.py  # Dataset generator
 │   ├── categories.yml      # Taxonomy configuration
-│   ├── transactions.csv    # Training data
-│   ├── models/             # Saved model files
-│   ├── reports/            # Evaluation reports
+│   ├── transactions_synthetic.csv  # Synthetic training data
+│   ├── models/             # Saved model files (*_latest.pkl)
+│   ├── reports/            # Evaluation reports (confusion matrix, metrics)
 │   └── logs/               # Training logs
 ├── build.gradle            # Gradle dependencies
-└── README.md               # This file
+├── README.md               # Main documentation
+├── DATASET.md              # Dataset documentation
+└── PROJECT_COMPLIANCE.md   # Compliance report
 ```
 
 ---
@@ -384,12 +397,28 @@ budgetbuddy/
 
 ### Development Setup
 
-1. Clone repository
-2. Install dependencies (see Prerequisites)
-3. Setup MySQL database
-4. Generate training data: `python mybudget-ai/create_synthetic_dataset.py`
-5. Train model: `python mybudget-ai/train_model.py`
-6. Start services (see Quick Start)
+1. **Clone repository:**
+   ```bash
+   git clone https://github.com/ssubbulakshmi172/budgetbuddy-ai.git
+   cd budgetbuddy-ai
+   ```
+
+2. **Install dependencies** (see Prerequisites section above)
+
+3. **Setup MySQL database** (see Quick Start section)
+
+4. **Generate training data** (optional - pre-trained model included):
+   ```bash
+   cd mybudget-ai
+   python create_synthetic_dataset.py --num-samples 7000
+   ```
+
+5. **Train model** (optional - pre-trained model included):
+   ```bash
+   python train_model.py
+   ```
+
+6. **Start services** (see Quick Start section)
 
 ### Code Style
 
@@ -445,20 +474,45 @@ Check `application.properties` has correct credentials.
 
 ## 📚 Additional Documentation
 
-- [PROJECT_COMPLIANCE.md](PROJECT_COMPLIANCE.md) - Detailed compliance report
-- [DATASET.md](DATASET.md) - Dataset source and preprocessing
+- [PROJECT_COMPLIANCE.md](PROJECT_COMPLIANCE.md) - Detailed compliance report against competition requirements
+- [DATASET.md](DATASET.md) - Dataset source, preprocessing, and reproducibility
 - [mybudget-ai/requirements.txt](mybudget-ai/requirements.txt) - Python dependencies
+
+---
+
+## 🔗 Repository
+
+**GitHub:** https://github.com/ssubbulakshmi172/budgetbuddy-ai
 
 ---
 
 ## 🙏 Acknowledgments
 
 - **Dataset:** Hugging Face `deepakjoshi1606/mock-upi-txn-data`
-- **ML Libraries:** Scikit-learn, NumPy, Pandas
+- **ML Libraries:** Scikit-learn, NumPy, Pandas, Matplotlib
 - **Web Framework:** Spring Boot, Flask
 - **UI:** Bootstrap 5, Chart.js, Thymeleaf
 
 ---
 
+## 📊 Compliance Status
+
+**Overall Compliance: ~90%** with competition requirements
+
+✅ **Completed Requirements:**
+- End-to-End Autonomous Categorisation (100%)
+- Customisable Taxonomy via YAML (100%)
+- Evaluation Reports with Metrics (100%)
+- Explainability Features (100%)
+- Feedback Loop Mechanism (100%)
+
+⚠️ **Near Complete:**
+- Macro F1 Score: 0.8859 (target: ≥0.90) - **97% of target**
+
+📋 **For detailed compliance analysis, see:** [PROJECT_COMPLIANCE.md](PROJECT_COMPLIANCE.md)
+
+---
+
 **Last Updated:** January 2025  
-**Status:** Production Ready (85% compliant with competition requirements)
+**Version:** 1.0.0  
+**Status:** Production Ready
