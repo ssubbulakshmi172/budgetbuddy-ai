@@ -1,0 +1,92 @@
+# Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+!gradle/wrapper/gradle-wrapper.jar
+target/
+out/
+
+# IDE
+.idea
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+.apt_generated
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.venv
+mybudget-ai/venv/
+*.egg-info/
+dist/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# ML Models & Data
+mybudget-ai/models_bert/
+*.h5
+*.ckpt
+# Ignore old timestamped models, keep only latest
+mybudget-ai/models/*_*.pkl
+!mybudget-ai/models/*_latest.pkl
+# Large CSV files
+*.csv
+!mybudget-ai/transactions_synthetic.csv
+# Old reports and logs
+mybudget-ai/logs/
+mybudget-ai/reports/*_*.png
+mybudget-ai/reports/*_*.json
+
+# Logs
+*.log
+*.log.*
+*.gz
+budgetbuddy.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary Files
+*.tmp
+*.bak
+*.backup
+*.old
+~$*.xlsx
+~$*.xls
+
+# Environment & Secrets
+.env
+.env.*
+*.key
+*.pem
+*.crt
+application-local.properties
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

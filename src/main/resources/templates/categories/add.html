@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+<head>
+    <title>Add Category - BudgetBuddy</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h1>Add Category Keyword</h1>
+                    <p class="subtitle">Create a new category keyword to help categorize transactions</p>
+                </div>
+                <a th:href="@{/categories}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Categories
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-plus-circle me-2"></i>Category Information
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/categories/add}" th:object="${categoryKeyword}" method="post">
+                            <div class="mb-3">
+                                <label for="categoryName" class="form-label">Category Name</label>
+                                <input type="text" 
+                                       id="categoryName" 
+                                       th:field="*{categoryName}" 
+                                       class="form-control" 
+                                       placeholder="e.g., Groceries, Dining, Transport"
+                                       required />
+                                <small class="form-text text-muted">Enter the name of the expense category</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="keyword" class="form-label">Keyword</label>
+                                <input type="text" 
+                                       id="keyword" 
+                                       th:field="*{keyword}" 
+                                       class="form-control" 
+                                       placeholder="e.g., supermarket, restaurant, uber"
+                                       required />
+                                <small class="form-text text-muted">Enter a keyword that appears in transaction descriptions for this category</small>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <a th:href="@{/categories}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle me-2"></i>Add Category
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-info-circle me-2"></i>Tips
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Use specific, commonly appearing keywords
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Include variations (e.g., "uber", "taxi", "cab")
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Categories help AI categorize transactions automatically
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Uncategorized Transactions Section -->
+        <div class="card mt-4" th:if="${uncategorizedTransactions != null and !#lists.isEmpty(uncategorizedTransactions)}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-question-circle me-2"></i>Uncategorized Transactions
+                </div>
+                <a th:href="@{/transactions/recategorize-all}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-arrow-repeat me-1"></i>Recategorize All
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>User</th>
+                                <th class="text-end">Withdrawal</th>
+                                <th class="text-end">Deposit</th>
+                                <th>Category</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="transaction : ${uncategorizedTransactions}">
+                                <td th:text="${transaction.id}">1</td>
+                                <td th:text="${#temporals.format(transaction.date, 'MMM d, yyyy')}">Jan 1, 2023</td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 300px;" th:text="${transaction.narration}">Description</div>
+                                </td>
+                                <td th:text="${transaction.user.name}">User</td>
+                                <td class="text-end" th:text="${transaction.withdrawalAmt != null ? #numbers.formatDecimal(transaction.withdrawalAmt, 1, 2) : '-'}">-</td>
+                                <td class="text-end" th:text="${transaction.depositAmt != null ? #numbers.formatDecimal(transaction.depositAmt, 1, 2) : '-'}">-</td>
+                                <td>
+                                    <span class="badge bg-secondary" 
+                                          th:text="${transaction.categoryName != null ? transaction.categoryName : 'Uncategorized'}">
+                                        Uncategorized
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a th:href="@{/transactions/edit/{id}(id=${transaction.id})}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

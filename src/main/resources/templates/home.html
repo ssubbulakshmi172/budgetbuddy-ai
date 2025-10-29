@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - BudgetBuddy">Home - BudgetBuddy</title>
+</head>
+
+<body>
+    <div layout:fragment="content">
+        <div class="container">
+            <div class="page-header text-center mb-5">
+                <h1 class="display-4 fw-bold text-primary mb-3">Welcome to BudgetBuddy</h1>
+                <p class="lead text-muted">Your personal finance management solution</p>
+            </div>
+            
+            <div class="row g-4">
+                <!-- Transactions Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/transactions}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-primary mb-3">
+                                <i class="bi bi-cash-stack"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Transactions</h3>
+                            <p class="text-muted mb-0">View and manage all your financial transactions in one place</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Users Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/users}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-success mb-3">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Users</h3>
+                            <p class="text-muted mb-0">Manage user accounts and access permissions</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Upload Transactions Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/transactions/transaction-upload}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-info mb-3">
+                                <i class="bi bi-cloud-upload"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Upload</h3>
+                            <p class="text-muted mb-0">Easily import your bank statements and transactions</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Filter Transactions Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/transactions/filter-form}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-warning mb-3">
+                                <i class="bi bi-funnel"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Filter</h3>
+                            <p class="text-muted mb-0">Filter and search through your transaction history</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Dashboard Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/transactions/dashboard}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-danger mb-3">
+                                <i class="bi bi-speedometer2"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Dashboard</h3>
+                            <p class="text-muted mb-0">Get insights with visual analytics and reports</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Categories Card -->
+                <div class="col-md-4 col-sm-6">
+                    <a class="card h-100 text-decoration-none card-hover feature-card" th:href="@{/categories}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon text-primary mb-3">
+                                <i class="bi bi-tags"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Categories</h3>
+                            <p class="text-muted mb-0">Organize your spending with custom categories</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="row mt-5 pt-4">
+                <div class="col-12 text-center mb-4">
+                    <h2 class="h3 fw-bold">Track Your Finances</h2>
+                    <p class="text-muted">Get a clear overview of your financial health</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-graph-up-arrow display-4 text-success mb-3"></i>
+                            <h3 class="h5 fw-bold">Income</h3>
+                            <p class="display-5 fw-bold text-success">₹0.00</p>
+                            <p class="text-muted small">This month</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-graph-down-arrow display-4 text-danger mb-3"></i>
+                            <h3 class="h5 fw-bold">Expenses</h3>
+                            <p class="display-5 fw-bold text-danger">₹0.00</p>
+                            <p class="text-muted small">This month</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-piggy-bank display-4 text-primary mb-3"></i>
+                            <h3 class="h5 fw-bold">Savings</h3>
+                            <p class="display-5 fw-bold text-primary">₹0.00</p>
+                            <p class="text-muted small">Total saved</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

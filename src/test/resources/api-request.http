@@ -1,0 +1,7 @@
+POST http://localhost:8080/api/chat
+Content-Type: application/json
+
+{
+  "chatSessionId": "1",
+  "message": "Hello, how can I help?"
+}

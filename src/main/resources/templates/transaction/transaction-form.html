@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - BudgetBuddy" th:text="${transaction.id != null} ? 'Edit Transaction' : 'Create Transaction'">Transaction Form - BudgetBuddy</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h1 th:text="${transaction.id != null} ? 'Edit Transaction' : 'Create New Transaction'">Transaction Form</h1>
+                    <p class="subtitle" th:if="${transaction.id != null}">Update transaction details below</p>
+                    <p class="subtitle" th:unless="${transaction.id != null}">Fill in the details to create a new transaction</p>
+                </div>
+                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
+                </a>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <form th:action="@{/transactions}" th:object="${transaction}" method="post">
+                            <input type="hidden" th:field="*{id}" />
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="date" class="form-label">Date</label>
+                                    <input type="date" 
+                                           id="date" 
+                                           th:field="*{date}" 
+                                           class="form-control" 
+                                           required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="user" class="form-label">User</label>
+                                    <select id="user" 
+                                            th:field="*{user}" 
+                                            class="form-select" 
+                                            required>
+                                        <option value="" disabled selected>Select User</option>
+                                        <option th:each="user : ${users}" 
+                                                th:value="${user.id}" 
+                                                th:text="${user.id} + ' - ' + ${user.name}">
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="narration" class="form-label">Description / Narration</label>
+                                <input type="text" 
+                                       id="narration" 
+                                       th:field="*{narration}" 
+                                       class="form-control" 
+                                       placeholder="Enter transaction description"
+                                       required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="chequeRefNo" class="form-label">Cheque/Reference Number</label>
+                                <input type="text" 
+                                       id="chequeRefNo" 
+                                       th:field="*{chequeRefNo}" 
+                                       class="form-control" 
+                                       placeholder="Optional reference number" />
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="withdrawalAmt" class="form-label">Withdrawal Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" 
+                                               id="withdrawalAmt" 
+                                               step="0.01" 
+                                               th:field="*{withdrawalAmt}" 
+                                               class="form-control" 
+                                               placeholder="0.00"
+                                               min="0" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="depositAmt" class="form-label">Deposit Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" 
+                                               id="depositAmt" 
+                                               step="0.01" 
+                                               th:field="*{depositAmt}" 
+                                               class="form-control" 
+                                               placeholder="0.00"
+                                               min="0" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle me-2"></i>Save Transaction
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

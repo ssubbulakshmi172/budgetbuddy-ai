@@ -1,0 +1,21 @@
+categories:
+  - name: Groceries
+    keywords: ["grocery", "nilgiris", "farm", "bigbasket", "instamart", "walmart", "vegetables", "fruits", "supermarket"]
+  - name: Dining
+    keywords: ["coffee", "starbucks", "dominos", "swiggy", "zomato", "mcdonalds", "pizza", "restaurant", "food", "lunch", "dinner"]
+  - name: Healthcare
+    keywords: ["pharmacy", "clinic", "doctor", "apollo", "medicine", "medical", "consultation"]
+  - name: Transport
+    keywords: ["uber", "cab", "taxi", "metro", "bus", "ride", "parking", "fuel"]
+  - name: Travel
+    keywords: ["flight", "hotel", "booking", "airline", "trip", "vacation"]
+  - name: Utilities
+    keywords: ["electricity", "mobile", "phone", "recharge", "bill", "prepaid", "airtel"]
+  - name: Entertainment
+    keywords: ["netflix", "movie", "cinema", "theater", "subscription", "streaming", "pvr", "cinepolis"]
+  - name: Shopping
+    keywords: ["amazon", "flipkart", "purchase", "order", "buy", "shoes", "electronics"]
+  - name: Charity
+    keywords: ["donation", "charity", "contribution"]
+  - name: Fitness
+    keywords: ["gym", "fitness", "workout", "exercise", "membership"]

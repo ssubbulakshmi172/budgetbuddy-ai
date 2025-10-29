@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+<head>
+    <title>Upload Transactions - BudgetBuddy</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h1>Upload Transaction Files</h1>
+                    <p class="subtitle">Import transactions from CSV or Excel files</p>
+                </div>
+                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
+                </a>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-cloud-upload me-2"></i>Upload Files
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/transactions/transaction-upload}" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="user" class="form-label">Select User</label>
+                                <select name="user" id="user" class="form-select" required>
+                                    <option value="" disabled selected>Select User</option>
+                                    <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.name}"></option>
+                                </select>
+                                <small class="form-text text-muted">Select the user associated with these transactions</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="files" class="form-label">Upload Files</label>
+                                <input type="file" 
+                                       name="files" 
+                                       id="files" 
+                                       class="form-control" 
+                                       multiple 
+                                       accept=".csv,.xlsx,.xls" 
+                                       required />
+                                <small class="form-text text-muted">Select one or more CSV or Excel files to upload. Supported formats: .csv, .xlsx, .xls</small>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>File Format Requirements:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>CSV files should have headers in the first row</li>
+                                    <li>Required columns: Date, Narration/Description, Amount</li>
+                                    <li>Dates should be in YYYY-MM-DD format</li>
+                                </ul>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-cloud-upload me-2"></i>Upload Files
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div th:if="${message}" class="card mt-4">
+                    <div class="card-body">
+                        <div class="alert" 
+                             th:classappend="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')} ? 'alert-success' : 'alert-info'">
+                            <i class="bi bi-info-circle me-2" th:if="${!#strings.contains(message, 'success') and !#strings.contains(message, 'Success')}"></i>
+                            <i class="bi bi-check-circle me-2" th:if="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')}"></i>
+                            <span th:text="${message}">Message</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

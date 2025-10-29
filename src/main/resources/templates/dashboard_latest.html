@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+
+<head>
+    <title>Dashboard - BudgetBuddy</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-hero {
+            background: linear-gradient(135deg, var(--bb-primary) 0%, var(--bb-secondary) 100%);
+            border-radius: var(--bb-radius-xl);
+            padding: var(--bb-spacing-xl);
+            color: white;
+            margin-bottom: var(--bb-spacing-xl);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        
+        .dashboard-hero > * {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--bb-radius-lg);
+            padding: var(--bb-spacing-xs) var(--bb-spacing-md);
+            font-size: 0.875rem;
+            font-weight: var(--bb-font-weight-medium);
+        }
+        
+        .month-selector {
+            display: flex;
+            gap: var(--bb-spacing-sm);
+            flex-wrap: wrap;
+            margin-bottom: var(--bb-spacing-lg);
+            padding: var(--bb-spacing-sm);
+            background: var(--bb-gray-100);
+            border-radius: var(--bb-radius-lg);
+        }
+        
+        .month-btn {
+            flex: 1;
+            min-width: 90px;
+            padding: var(--bb-spacing-sm) var(--bb-spacing-md);
+            border: 2px solid transparent;
+            background: white;
+            border-radius: var(--bb-radius-md);
+            font-size: 0.85rem;
+            font-weight: var(--bb-font-weight-medium);
+            color: var(--bb-gray-700);
+            cursor: pointer;
+            transition: var(--bb-transition-base);
+            text-align: center;
+        }
+        
+        .month-btn:hover {
+            border-color: var(--bb-primary);
+            color: var(--bb-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--bb-shadow-sm);
+        }
+        
+        .month-btn.active {
+            background: var(--bb-primary);
+            color: white;
+            border-color: var(--bb-primary);
+            box-shadow: var(--bb-shadow-md);
+        }
+        
+        .chart-card {
+            border: none;
+            border-radius: var(--bb-radius-xl);
+            box-shadow: var(--bb-shadow-lg);
+            overflow: hidden;
+            transition: var(--bb-transition-slow);
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--bb-shadow-xl);
+        }
+        
+        .chart-header {
+            background: linear-gradient(135deg, var(--bb-primary-light) 0%, white 100%);
+            padding: var(--bb-spacing-lg);
+            border-bottom: 2px solid var(--bb-gray-200);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--bb-spacing-lg);
+            margin-bottom: var(--bb-spacing-xl);
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: var(--bb-radius-lg);
+            padding: var(--bb-spacing-lg);
+            box-shadow: var(--bb-shadow-md);
+            border-left: 4px solid var(--bb-primary);
+            transition: var(--bb-transition-base);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--bb-shadow-lg);
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--bb-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: var(--bb-spacing-md);
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: var(--bb-font-weight-bold);
+            color: var(--bb-gray-900);
+            margin-bottom: var(--bb-spacing-xs);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--bb-gray-600);
+            font-weight: var(--bb-font-weight-medium);
+        }
+        
+        .recent-transactions-card {
+            border: none;
+            border-radius: var(--bb-radius-xl);
+            box-shadow: var(--bb-shadow-lg);
+        }
+        
+        .transaction-item-modern {
+            display: flex;
+            align-items: center;
+            padding: var(--bb-spacing-md);
+            border-radius: var(--bb-radius-md);
+            margin-bottom: var(--bb-spacing-sm);
+            background: var(--bb-gray-50);
+            border: 1px solid var(--bb-gray-200);
+            transition: var(--bb-transition-base);
+        }
+        
+        .transaction-item-modern:hover {
+            background: white;
+            border-color: var(--bb-primary);
+            box-shadow: var(--bb-shadow-sm);
+            transform: translateX(4px);
+        }
+    </style>
+</head>
+
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <!-- Dashboard Hero Section -->
+        <div class="dashboard-hero">
+            <div class="d-flex justify-content-between align-items-start flex-wrap mb-4">
+                <div>
+                    <h1 class="display-5 fw-bold mb-2">Financial Dashboard</h1>
+                    <p class="lead mb-0 opacity-90">Track and analyze your spending patterns</p>
+                </div>
+                <a th:href="@{/transactions/new}" class="btn btn-light btn-lg">
+                    <i class="bi bi-plus-circle me-2"></i>Add Transaction
+                </a>
+            </div>
+            
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div>
+                    <div class="stat-badge mb-1">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        <span th:text="${hasCurrentMonthData ? currentMonth : lastMonth}">Current Month</span>
+                    </div>
+                    <h2 class="display-3 fw-bold mb-0" th:text="'₹' + ${#numbers.formatDecimal(totalSpending, 1, 2)}">₹0.00</h2>
+                    <p class="mb-0 opacity-75" style="font-size: 0.9rem;">Total Spending</p>
+                </div>
+                <div class="vr" style="height: 60px; opacity: 0.3;"></div>
+                <div>
+                    <div class="stat-badge mb-1"
+                         th:classappend="${percentageChange >= 0 ? 'bg-danger bg-opacity-25' : 'bg-success bg-opacity-25'}">
+                        <i class="me-1" th:classappend="${percentageChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'}"></i>
+                        <span th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(percentageChange), 1, 2)} + '%'"></span>
+                    </div>
+                    <p class="mb-0 opacity-75" style="font-size: 0.9rem;">vs Last Month</p>
+                </div>
+                <div class="vr" style="height: 60px; opacity: 0.3;"></div>
+                <div>
+                    <div class="stat-badge mb-1" th:if="${uncategorizedCount > 0}">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <span th:text="${uncategorizedCount}">0</span> Uncategorized
+                    </div>
+                    <p class="mb-0 opacity-75" style="font-size: 0.9rem;">Transactions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Banners -->
+        <div th:if="${uncategorizedCount > 0}" class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Action Required:</strong> You have 
+                    <a th:href="@{/transactions}" class="alert-link fw-bold">
+                        <span th:text="${uncategorizedCount}">0</span> uncategorized transactions
+                    </a>. 
+                    Categorize them now for better insights.
+                </div>
+            </div>
+        </div>
+        
+        <div th:if="${!hasCurrentMonthData}" class="alert alert-info border-0 shadow-sm mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>No data for this month.</strong> Showing data from last month.
+                </div>
+            </div>
+        </div>
+
+        <!-- Category-wise Month Comparison Chart -->
+        <div class="card chart-card mb-4">
+            <div class="chart-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                    <div>
+                        <h4 class="fw-bold mb-1">Category-wise Month Comparison</h4>
+                        <p class="text-muted small mb-0">Last 6 Months Spending Analysis</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleView('grouped')">
+                            <i class="bi bi-bar-chart me-1"></i>Grouped
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleView('stacked')">
+                            <i class="bi bi-stack me-1"></i>Stacked
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Month Selector -->
+                <div class="month-selector" id="monthSelector">
+                    <!-- Month buttons will be dynamically generated -->
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="chart-container" style="position: relative; height: 550px;">
+                    <canvas id="categoryMonthChart"></canvas>
+                </div>
+                <div class="mt-4 text-center" th:if="${categoryMonthComparison.isEmpty()}">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="bi bi-bar-chart"></i>
+                        </div>
+                        <div class="empty-state-title">No Spending Data</div>
+                        <div class="empty-state-text">Start adding transactions to see your spending patterns</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="stat-value" th:text="'₹' + ${#numbers.formatDecimal(totalSpending, 1, 2)}">₹0.00</div>
+                <div class="stat-label">Total Spending</div>
+            </div>
+            
+            <div class="stat-card" style="border-left-color: var(--bb-success);">
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-tags"></i>
+                </div>
+                <div class="stat-value" th:text="${categoryMonthComparison != null ? categoryMonthComparison.size() : 0}">0</div>
+                <div class="stat-label">Active Categories</div>
+            </div>
+            
+            <div class="stat-card" style="border-left-color: var(--bb-warning);">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-calendar-month"></i>
+                </div>
+                <div class="stat-value" th:text="${#lists.size(recentTransactions)}">0</div>
+                <div class="stat-label">Recent Transactions</div>
+            </div>
+            
+            <div class="stat-card" th:if="${uncategorizedCount > 0}" style="border-left-color: var(--bb-danger);">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-exclamation-circle"></i>
+                </div>
+                <div class="stat-value" th:text="${uncategorizedCount}">0</div>
+                <div class="stat-label">Uncategorized</div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions Card -->
+        <div class="card recent-transactions-card">
+            <div class="card-header bg-white border-bottom">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-1 fw-bold">Recent Transactions</h5>
+                        <p class="text-muted small mb-0">Latest 5 transactions</p>
+                    </div>
+                    <a th:href="@{/transactions}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-right me-1"></i>View All
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div th:if="${!recentTransactions.isEmpty()}" class="transactions-list-modern">
+                    <div class="transaction-item-modern" th:each="transaction : ${recentTransactions}">
+                        <div class="me-3">
+                            <div class="stat-icon"
+                                 th:classappend="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? 'bg-primary text-white' : 'bg-secondary text-white'}"
+                                 style="width: 40px; height: 40px; font-size: 1rem; margin: 0;">
+                                <i th:classappend="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? 'bi bi-tag-fill' : 'bi bi-question-circle-fill'}"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold mb-1" 
+                                 style="color: var(--bb-gray-900); font-size: 0.95rem;"
+                                 th:text="${transaction.narration}">Transaction Description</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <small class="text-muted" 
+                                       th:text="${#temporals.format(transaction.date, 'MMM d, yyyy')}">Date</small>
+                                <span class="badge badge-category" 
+                                      th:classappend="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? 'badge-category' : 'badge-uncategorized'}"
+                                      th:text="${transaction.categoryName ?: 'Uncategorized'}">Category</span>
+                            </div>
+                        </div>
+                        <div class="ms-3 text-end">
+                            <div class="fw-bold" 
+                                 style="font-size: 1.1rem;"
+                                 th:style="${transaction.amount < 0 ? 'color: var(--bb-danger) !important;' : 'color: var(--bb-success) !important;'}"
+                                 th:with="absAmount=${transaction.amount < 0 ? -transaction.amount : transaction.amount}">
+                                <span th:text="${transaction.amount < 0 ? '-' : '+'} + '₹' + ${#numbers.formatDecimal(absAmount, 1, 2)}">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="empty-state" th:if="${recentTransactions.isEmpty()}">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <div class="empty-state-title">No Recent Transactions</div>
+                    <div class="empty-state-text">Your recent transactions will appear here</div>
+                    <a th:href="@{/transactions/new}" class="btn btn-primary mt-3">
+                        <i class="bi bi-plus-lg me-2"></i>Add First Transaction
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        // Initialize category-wise 6-month comparison bar chart
+        let categoryChart = null;
+        let isStacked = false;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('categoryMonthChart');
+            
+            if (ctx) {
+                const categoryMonthData = /*[[${categoryMonthComparison}]]*/ {};
+                const monthNames = /*[[${monthNames}]]*/ [];
+                const monthKeys = /*[[${last6Months}]]*/ [];
+                
+                // Create month selector buttons
+                const monthSelector = document.getElementById('monthSelector');
+                if (monthSelector && monthNames.length > 0) {
+                    monthNames.forEach((name, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'month-btn' + (index === monthNames.length - 1 ? ' active' : '');
+                        btn.textContent = name;
+                        btn.onclick = () => filterByMonth(index);
+                        monthSelector.appendChild(btn);
+                    });
+                }
+                
+                // Get all categories sorted alphabetically
+                const categories = Object.keys(categoryMonthData).sort();
+                
+                // Enhanced color palette for 6 months
+                const monthColors = [
+                    { bg: 'rgba(108, 117, 125, 0.6)', border: 'rgba(108, 117, 125, 1)' },
+                    { bg: 'rgba(108, 117, 125, 0.7)', border: 'rgba(108, 117, 125, 1)' },
+                    { bg: 'rgba(76, 201, 240, 0.6)', border: 'rgba(76, 201, 240, 1)' },
+                    { bg: 'rgba(76, 201, 240, 0.7)', border: 'rgba(76, 201, 240, 1)' },
+                    { bg: 'rgba(67, 97, 238, 0.7)', border: 'rgba(67, 97, 238, 1)' },
+                    { bg: 'rgba(67, 97, 238, 0.9)', border: 'rgba(67, 97, 238, 1)' }
+                ];
+                
+                // Create datasets for each month
+                const datasets = monthKeys.map((monthKey, index) => {
+                    const data = categories.map(cat => 
+                        (categoryMonthData[cat] && categoryMonthData[cat][monthKey]) || 0
+                    );
+                    
+                    return {
+                        label: monthNames[index] || monthKey,
+                        data: data,
+                        backgroundColor: monthColors[index].bg,
+                        borderColor: monthColors[index].border,
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    };
+                });
+                
+                if (categories.length > 0 && datasets.length > 0) {
+                    categoryChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: categories,
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            scales: {
+                                x: {
+                                    stacked: false,
+                                    grid: {
+                                        display: false,
+                                        color: 'rgba(0, 0, 0, 0.05)'
+                                    },
+                                    ticks: {
+                                        font: {
+                                            size: 11,
+                                            weight: '600',
+                                            family: 'var(--bb-font-family)'
+                                        },
+                                        maxRotation: 45,
+                                        minRotation: 35,
+                                        color: 'rgba(0, 0, 0, 0.75)',
+                                        padding: 10
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    stacked: false,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)',
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            if (value >= 100000) {
+                                                return '₹' + (value / 100000).toFixed(1) + 'L';
+                                            } else if (value >= 1000) {
+                                                return '₹' + (value / 1000).toFixed(0) + 'K';
+                                            }
+                                            return '₹' + value.toFixed(0);
+                                        },
+                                        font: {
+                                            size: 11,
+                                            family: 'var(--bb-font-family)'
+                                        },
+                                        color: 'rgba(0, 0, 0, 0.75)',
+                                        padding: 10
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    align: 'center',
+                                    labels: {
+                                        padding: 12,
+                                        usePointStyle: true,
+                                        pointStyle: 'circle',
+                                        boxWidth: 12,
+                                        boxPadding: 5,
+                                        font: {
+                                            size: 12,
+                                            weight: '600',
+                                            family: 'var(--bb-font-family)'
+                                        },
+                                        color: 'rgba(0, 0, 0, 0.85)'
+                                    }
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    titleColor: 'rgba(0, 0, 0, 0.9)',
+                                    bodyColor: 'rgba(0, 0, 0, 0.8)',
+                                    borderColor: 'rgba(0, 0, 0, 0.1)',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    displayColors: true,
+                                    callbacks: {
+                                        label: function(context) {
+                                            const label = context.dataset.label || '';
+                                            const value = context.parsed.y || 0;
+                                            const category = categories[context.dataIndex];
+                                            return `${label}: ₹${value.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+        
+        function toggleView(mode) {
+            if (!categoryChart) return;
+            
+            isStacked = (mode === 'stacked');
+            categoryChart.options.scales.x.stacked = isStacked;
+            categoryChart.options.scales.y.stacked = isStacked;
+            
+            categoryChart.data.datasets.forEach(dataset => {
+                // Keep existing styling
+            });
+            
+            categoryChart.update();
+            
+            // Update button states
+            document.querySelectorAll('[onclick^="toggleView"]').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary', 'btn-outline-secondary');
+            });
+            
+            const activeBtn = event.target.closest('button');
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-primary', 'btn-outline-secondary');
+                activeBtn.classList.add('btn-primary');
+            }
+        }
+        
+        function filterByMonth(monthIndex) {
+            // Update active button
+            document.querySelectorAll('.month-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx === monthIndex);
+            });
+            
+            // In future, can filter chart data here
+            if (categoryChart) {
+                categoryChart.update();
+            }
+        }
+    </script>
+</div>
+</body>
+</html>

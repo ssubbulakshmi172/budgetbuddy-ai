@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category-Wise Month Level Comparison</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .no-data {
+            color: red;
+            text-align: center;
+            font-weight: bold;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Category-Wise Month Level Comparison</h2>
+<form th:action="@{/transactions/dashboard}" method="get">
+    <label for="user">Select User:</label>
+    <select name="user" id="user">
+        <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.name}"></option>
+    </select>
+    <button type="submit">Apply Filter</button>
+</form>
+
+
+
+<table>
+    <thead>
+    <tr id="header-row">
+        <th>Category</th>
+    </tr>
+    </thead>
+    <tbody id="category-data"></tbody>
+    <tfoot>
+    <tr id="total-row" class="total-row">
+        <td>Total Expense</td>
+    </tr>
+    </tfoot>
+</table>
+
+<pre id="raw-data" style="display: none;"></pre>
+
+<button id="download-btn">Download CSV</button>
+
+<script th:inline="javascript">
+    const categoryMonthSumsJson = /*[[${categoryMonthSumsJson}]]*/ '{}';
+    const categoryMonthSums = JSON.parse(categoryMonthSumsJson);
+    const categoryOrder = [
+        "SCHOOL", "AMAZON", "ENTERTAINMENT", "TRAVEL", "VELMANI", "MISC", "ONETIME",
+        "TRADING", "GROCERY", "MEDICAL", "TALLY", "SALARY", "UTILITY", "FD", "FOOD", "PETROL"
+    ];
+    document.getElementById('raw-data').textContent = JSON.stringify(categoryMonthSums, null, 2);
+    const allMonths = new Set();
+    Object.values(categoryMonthSums).forEach(months => {
+        Object.keys(months).forEach(month => allMonths.add(month));
+    });
+const monthOrder = [
+    "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+];
+
+
+    const sortedMonths = [...allMonths].sort(
+    (a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b)
+);
+
+    const headerRow = document.getElementById('header-row');
+    sortedMonths.forEach(month => {
+        const th = document.createElement('th');
+        th.textContent = month;
+        headerRow.appendChild(th);
+    });
+    headerRow.appendChild(document.createElement('th')).textContent = "Total";
+    const tbody = document.getElementById('category-data');
+    const totalRow = document.getElementById('total-row');
+    const totalExpenses = {};
+    if (Object.keys(categoryMonthSums).length === 0) {
+        tbody.innerHTML = "<tr><td colspan='100%' class='no-data'>No data available</td></tr>";
+    } else {
+const categoryOrder = [
+        "SCHOOL", "AMAZON", "ENTERTAINMENT", "TRAVEL", "VELMANI", "MISC", "ONETIME",
+        "TRADING", "GROCERY", "MEDICAL", "TALLY", "SALARY", "UTILITY", "FD", "FOOD", "PETROL"
+    ];
+        const sortedCategories = Object.keys(categoryMonthSums)
+        .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
+
+        sortedCategories.forEach(category => {
+            const row = document.createElement('tr');
+            const categoryCell = document.createElement('td');
+            categoryCell.textContent = category;
+            row.appendChild(categoryCell);
+            let categoryTotal = 0;
+            sortedMonths.forEach(month => {
+                const monthCell = document.createElement('td');
+                const value = parseFloat(categoryMonthSums[category][month] ?? "0.0");
+                monthCell.textContent = value.toFixed(2);
+                row.appendChild(monthCell);
+                categoryTotal += value;
+                totalExpenses[month] = (totalExpenses[month] || 0) + value;
+            });
+            const totalCell = document.createElement('td');
+            totalCell.textContent = categoryTotal.toFixed(2);
+            row.appendChild(totalCell);
+            tbody.appendChild(row);
+        });
+    }
+    sortedMonths.forEach(month => {
+        const totalCell = document.createElement('td');
+        totalCell.textContent = (totalExpenses[month] || 0).toFixed(2);
+        totalRow.appendChild(totalCell);
+    });
+    const grandTotal = Object.values(totalExpenses).reduce((sum, val) => sum + val, 0);
+    const grandTotalCell = document.createElement('td');
+    grandTotalCell.textContent = grandTotal.toFixed(2);
+    totalRow.appendChild(grandTotalCell);
+    document.getElementById('download-btn').addEventListener('click', () => {
+        let csvContent = "Category," + sortedMonths.join(",") + ",Total\n";
+                const sortedCategories = Object.keys(categoryMonthSums)
+        .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
+        sortedCategories.forEach(category => {
+            const row = [category, ...sortedMonths.map(month => categoryMonthSums[category][month] ?? "0.0")];
+            row.push(row.slice(1).reduce((sum, val) => sum + parseFloat(val), 0).toFixed(2));
+            csvContent += row.join(",") + "\n";
+        });
+        let totalRow = ["Total Expense", ...sortedMonths.map(month => totalExpenses[month].toFixed(2) || "0.0")];
+        totalRow.push(grandTotal.toFixed(2));
+        csvContent += totalRow.join(",") + "\n";
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "Category_Month_Comparison.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+</script>
+
+</body>
+</html>

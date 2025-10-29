@@ -1,0 +1,148 @@
+package com.budgetbuddy.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+
+@Entity
+public class Transaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private LocalDate date;
+    private String narration;
+    private String chequeRefNo;
+
+    @Column(name = "withdrawal_amount")
+    private Double withdrawalAmt;
+
+    @Column(name = "deposit_amount")
+    private Double depositAmt;
+
+    @Column(name = "closing_balance")
+    private Double closingBalance;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+
+
+
+    @Column(name = "predicted_category")
+    private String predictedCategory;
+
+    @Column(nullable = true)
+    private String categoryName; // New column for the matched category
+
+    @Column(nullable = false)
+    private Double amount;
+
+    public Double getAmount() {
+        return amount;
+    }
+
+    public void setAmount(Double amt) {
+        this.amount = amt;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+    // Default Constructor
+    public Transaction() {}
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    public String getNarration() {
+        return narration;
+    }
+
+    public void setNarration(String narration) {
+        this.narration = narration;
+    }
+
+    public String getChequeRefNo() {
+        return chequeRefNo;
+    }
+
+    public void setChequeRefNo(String chequeRefNo) {
+        this.chequeRefNo = chequeRefNo;
+    }
+
+    public Double getWithdrawalAmt() {
+        return withdrawalAmt;
+    }
+
+    public void setWithdrawalAmt(Double withdrawalAmt) {
+        this.withdrawalAmt = withdrawalAmt;
+    }
+
+    public Double getDepositAmt() {
+        return depositAmt;
+    }
+
+    public void setDepositAmt(Double depositAmt) {
+        this.depositAmt = depositAmt;
+    }
+
+    public Double getClosingBalance() {
+        return closingBalance;
+    }
+
+    public void setClosingBalance(Double closingBalance) {
+        this.closingBalance = closingBalance;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getPredictedCategory() {
+        return predictedCategory;
+    }
+
+    public void setPredictedCategory(String predictedCategory) {
+        this.predictedCategory = predictedCategory;
+    }
+
+    // Override toString method for logging or debugging
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "id=" + id +
+                ", date=" + date +
+                ", narration='" + narration + '\'' +
+                ", chequeRefNo='" + chequeRefNo + '\'' +
+                ", withdrawalAmt=" + withdrawalAmt +
+                ", depositAmt=" + depositAmt +
+                ", closingBalance=" + closingBalance +
+                ", user=" + user.getId() + " - " + user.getName() +
+                ", categoryName="+categoryName+
+                '}';
+    }
+}
