@@ -75,7 +75,13 @@ body {
     font-size: var(--bb-font-size-base);
     font-weight: var(--bb-font-weight-normal);
     color: var(--bb-gray-900);
-    background-color: var(--bb-gray-50);
+    background-color: #ffffff;
+    background-image: 
+        radial-gradient(circle at top right, rgba(102, 178, 255, 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(102, 178, 255, 0.02) 100%);
+    background-attachment: fixed;
+    background-size: 120% 120%, 100% 100%;
+    background-position: top right, center;
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
@@ -83,6 +89,8 @@ body {
     margin: 0;
     padding: 0;
 }
+
+/* Override for home page will be in home.css */
 
 /* ====================================
    Header & Navigation
@@ -139,7 +147,7 @@ body {
 
 .app-content {
     flex: 1;
-    background-color: var(--bb-gray-50);
+    background-color: transparent;
     padding: var(--bb-spacing-xl) 0;
 }
 
@@ -168,6 +176,21 @@ body {
     color: var(--bb-gray-600);
     font-size: 1.1rem;
     margin: 0;
+}
+
+/* Welcome Title Styles */
+.welcome-title {
+    margin-bottom: var(--bb-spacing-md) !important;
+}
+
+.welcome-text {
+    color: #66B2FF;
+    font-weight: var(--bb-font-weight-semibold);
+}
+
+.brand-text {
+    color: #007BFF;
+    font-weight: var(--bb-font-weight-bold);
 }
 
 /* ====================================
@@ -212,11 +235,15 @@ body {
     height: 100%;
     border-left: 4px solid transparent;
     transition: var(--bb-transition-slow);
+    background: #ffffff;
+    border-radius: var(--bb-radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .feature-card:hover {
     border-left-color: var(--bb-primary);
     transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .feature-card .card-body {
@@ -224,16 +251,41 @@ body {
 }
 
 .feature-card-icon {
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     margin: 0 auto var(--bb-spacing-md);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--bb-primary-light), var(--bb-primary));
-    font-size: 2rem;
-    color: var(--bb-primary);
+    font-size: 2.5rem;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Gradient icons for each feature card */
+.feature-card-transactions .feature-card-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.feature-card-users .feature-card-icon {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.feature-card-upload .feature-card-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.feature-card-filter .feature-card-icon {
+    background: linear-gradient(135deg, #f5576c 0%, #667eea 100%);
+}
+
+.feature-card-dashboard .feature-card-icon {
+    background: linear-gradient(135deg, #e74a3b 0%, #667eea 100%);
+}
+
+.feature-card-categories .feature-card-icon {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
 /* ====================================

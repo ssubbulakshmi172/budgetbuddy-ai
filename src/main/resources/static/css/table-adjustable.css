@@ -1,0 +1,218 @@
+/* Adjustable/Resizable Table Styles */
+
+/* Make table container scrollable */
+.table-responsive {
+    position: relative;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+/* Resizable table columns */
+table.resizable-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+table.resizable-table th {
+    position: relative;
+    padding-right: 20px !important;
+    user-select: none;
+}
+
+table.resizable-table th.resizable {
+    position: relative;
+    cursor: col-resize;
+}
+
+/* Resize handle */
+table.resizable-table th.resizable .resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 2;
+}
+
+table.resizable-table th.resizable .resize-handle:hover {
+    background: rgba(67, 97, 238, 0.3);
+}
+
+table.resizable-table th.resizable .resize-handle:active {
+    background: var(--bb-primary);
+}
+
+/* Alternative using ::after for fallback */
+table.resizable-table th.resizable::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 1;
+}
+
+table.resizable-table th.resizable:hover::after {
+    background: rgba(67, 97, 238, 0.3);
+}
+
+table.resizable-table th.resizable:active::after {
+    background: var(--bb-primary);
+}
+
+/* Remove max-width constraints */
+table.resizable-table td .text-truncate,
+table.resizable-table td div[style*="max-width"] {
+    max-width: none !important;
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Adjustable description column */
+table.resizable-table td .adjustable-description {
+    max-width: none !important;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 150px;
+}
+
+/* Make description field expandable */
+.description-cell {
+    min-width: 200px;
+    max-width: none;
+}
+
+.description-cell.expanded {
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 768px) {
+    table.resizable-table {
+        table-layout: auto;
+    }
+    
+    table.resizable-table th.resizable::after {
+        display: none;
+    }
+}
+
+/* Table column sizing utilities */
+.table-column-auto {
+    width: auto;
+    min-width: 100px;
+}
+
+.table-column-small {
+    width: 100px;
+    min-width: 80px;
+}
+
+.table-column-medium {
+    width: 150px;
+    min-width: 120px;
+}
+
+.table-column-large {
+    width: 250px;
+    min-width: 200px;
+}
+
+.table-column-xlarge {
+    width: 350px;
+    min-width: 300px;
+}
+
+/* Enhanced table styling for adjustable columns */
+.table-adjustable {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table-adjustable thead th {
+    background-color: var(--bb-gray-100);
+    border-bottom: 2px solid var(--bb-gray-300);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-adjustable tbody tr:hover {
+    background-color: var(--bb-gray-50);
+}
+
+/* Show full description - allow text wrapping */
+.table-adjustable td .adjustable-description {
+    white-space: normal !important;
+    overflow: visible !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: none !important;
+}
+
+/* Tooltip for truncated content if needed */
+.table-adjustable td .text-truncate {
+    position: relative;
+}
+
+.table-adjustable td .text-truncate:hover::before {
+    content: attr(data-full-text);
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    padding: 0.5rem;
+    background: var(--bb-gray-900);
+    color: white;
+    border-radius: 4px;
+    white-space: normal;
+    z-index: 1000;
+    max-width: 300px;
+    word-wrap: break-word;
+    font-size: 0.875rem;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Tooltip for truncated content */
+.tooltip-wrapper {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip-wrapper:hover::before {
+    content: attr(data-full-text);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem;
+    background: var(--bb-gray-900);
+    color: white;
+    border-radius: 4px;
+    white-space: normal;
+    z-index: 1000;
+    max-width: 300px;
+    word-wrap: break-word;
+    font-size: 0.875rem;
+    margin-bottom: 5px;
+}
+
+.tooltip-wrapper:hover::after {
+    content: '';
+    position: absolute;
+    bottom: 95%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--bb-gray-900);
+    z-index: 1000;
+}
+

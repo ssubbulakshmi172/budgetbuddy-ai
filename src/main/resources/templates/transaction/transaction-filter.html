@@ -120,7 +120,7 @@
                                     <tr th:each="transaction : ${transactions}">
                                         <td th:text="${#temporals.format(transaction.date, 'MMM d, yyyy')}">Date</td>
                                         <td>
-                                            <div class="text-truncate" style="max-width: 250px;" th:text="${transaction.narration}">Description</div>
+                                            <div class="adjustable-description description-cell" th:text="${transaction.narration}">Description</div>
                                         </td>
                                         <td class="text-end">
                                             <span class="fw-bold" 
