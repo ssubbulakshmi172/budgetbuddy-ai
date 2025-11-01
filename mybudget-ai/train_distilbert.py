@@ -206,37 +206,77 @@ def load_taxonomy_from_yaml(taxonomy_file: str) -> Optional[List[str]]:
         return None
 
 
-def load_taxonomy(db_first: bool = True) -> Optional[List[str]]:
+def load_taxonomy(db_first: bool = True, merge_sources: bool = True) -> Optional[List[str]]:
     """
-    Load taxonomy from database (primary) or YAML file (fallback).
-    This is the source of truth for categories (as per requirements).
+    Load taxonomy from database and/or YAML file.
+    Supports both sources working together (as per requirements).
     
     Args:
-        db_first: If True, try database first, then YAML. If False, try YAML first.
+        db_first: If True, database is primary source. If False, YAML is primary.
+        merge_sources: If True, merge categories from both sources. 
+                      If False, use primary source only with fallback.
         
     Returns:
-        List of category names, or None if neither source available
+        List of category names merged from both sources, or None if neither available
     """
+    db_categories = None
+    yaml_categories = None
+    
+    # Load from both sources
+    try:
+        db_categories = load_taxonomy_from_db()
+    except Exception as e:
+        logging.debug(f"Database load attempt failed: {e}")
+    
+    try:
+        yaml_categories = load_taxonomy_from_yaml(TAXONOMY_FILE)
+    except Exception as e:
+        logging.debug(f"YAML load attempt failed: {e}")
+    
+    # Merge or use fallback based on merge_sources flag
+    if merge_sources:
+        # Merge categories from both sources (database takes precedence for ordering)
+        merged_categories = []
+        category_set = set()
+        
+        if db_categories:
+            logging.info(f"📊 Merging {len(db_categories)} categories from database")
+            for cat in db_categories:
+                if cat not in category_set:
+                    merged_categories.append(cat)
+                    category_set.add(cat)
+        
+        if yaml_categories:
+            logging.info(f"📄 Merging {len(yaml_categories)} categories from YAML file")
+            for cat in yaml_categories:
+                if cat not in category_set:
+                    merged_categories.append(cat)
+                    category_set.add(cat)
+                    logging.info(f"   + Added category from YAML: {cat}")
+        
+        if merged_categories:
+            merged_categories = sorted(merged_categories)
+            logging.info(f"✅ Merged taxonomy: {len(merged_categories)} total categories")
+            logging.info(f"   Sources: Database={db_categories is not None}, YAML={yaml_categories is not None}")
+            return merged_categories
+    
+    # Fallback mode: use primary source, then fallback
     if db_first:
-        # Try database first
-        categories = load_taxonomy_from_db()
-        if categories:
-            return categories
-        # Fallback to YAML
-        logging.info("💡 Database taxonomy unavailable, falling back to YAML file...")
-        categories = load_taxonomy_from_yaml(TAXONOMY_FILE)
-        if categories:
-            return categories
+        if db_categories:
+            if yaml_categories:
+                logging.info("💡 Using database categories (primary). YAML file also available for reference.")
+            return db_categories
+        if yaml_categories:
+            logging.info("💡 Database taxonomy unavailable, using YAML file...")
+            return yaml_categories
     else:
-        # Try YAML first
-        categories = load_taxonomy_from_yaml(TAXONOMY_FILE)
-        if categories:
-            return categories
-        # Fallback to database
-        logging.info("💡 YAML taxonomy unavailable, falling back to database...")
-        categories = load_taxonomy_from_db()
-        if categories:
-            return categories
+        if yaml_categories:
+            if db_categories:
+                logging.info("💡 Using YAML categories (primary). Database also available for reference.")
+            return yaml_categories
+        if db_categories:
+            logging.info("💡 YAML taxonomy unavailable, using database...")
+            return db_categories
     
     logging.warning("⚠️ No taxonomy found in database or YAML file")
     logging.warning("   Will extract categories from dataset instead")
@@ -378,9 +418,10 @@ def load_and_prepare_data(data_file: str) -> Tuple[pd.DataFrame, Dict]:
         logging.warning("⚠️ 'transaction_type' column not found, skipping this task")
         TASKS['transaction_type']['required'] = False
     
-    # Task 2: Category - Use taxonomy from database (as per requirements)
-    # Load taxonomy from database first (source of truth)
-    taxonomy_categories = load_taxonomy(db_first=True)
+    # Task 2: Category - Use taxonomy from database AND YAML file (as per requirements)
+    # Load and merge categories from both database and YAML file
+    # Database categories take precedence, YAML adds any additional categories
+    taxonomy_categories = load_taxonomy(db_first=True, merge_sources=True)
     
     if 'category' in df.columns:
         df['category'] = df['category'].fillna('Other')

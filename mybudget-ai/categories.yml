@@ -1,0 +1,152 @@
+# BudgetBuddy Transaction Categories Taxonomy
+# This file defines the category taxonomy for the transaction categorisation system.
+# Categories can be edited here without code changes (as per requirements).
+#
+# Format:
+# - Each category can have:
+#   - name: Category name (required)
+#   - keywords: List of keywords that commonly appear in transactions for this category (optional, for reference)
+#
+# Usage:
+# - The training pipeline loads categories from this file (if database is unavailable)
+# - Categories are used as the source of truth for model training
+# - After modifying this file, retrain the model: python3 train_distilbert.py
+
+categories:
+  - name: Charity
+    keywords:
+      - donation
+      - charity
+      - ngo
+      - relief
+      - fund
+      - contribute
+      - welfare
+      - cause
+      
+  - name: Dining
+    keywords:
+      - restaurant
+      - cafe
+      - starbucks
+      - food
+      - dine
+      - meal
+      - lunch
+      - dinner
+      - fastfood
+      - pizza
+      - burger
+      
+  - name: Entertainment
+    keywords:
+      - movie
+      - cinema
+      - theater
+      - concert
+      - show
+      - streaming
+      - netflix
+      - spotify
+      - music
+      - game
+      - ticket
+      
+  - name: Fitness
+    keywords:
+      - gym
+      - fitness
+      - workout
+      - yoga
+      - sports
+      - exercise
+      - trainer
+      - healthclub
+      - marathon
+      - running
+      
+  - name: Groceries
+    keywords:
+      - grocery
+      - supermarket
+      - vegetables
+      - fruits
+      - mart
+      - store
+      - bigbazaar
+      - dmart
+      - walmart
+      - foodmart
+      
+  - name: Healthcare
+    keywords:
+      - hospital
+      - clinic
+      - doctor
+      - pharmacy
+      - medical
+      - health
+      - medicine
+      - apollo
+      - diagnostic
+      - lab
+      
+  - name: Shopping
+    keywords:
+      - amazon
+      - flipkart
+      - shopping
+      - mall
+      - purchase
+      - retail
+      - store
+      - fashion
+      - clothes
+      - apparel
+      
+  - name: Transport
+    keywords:
+      - uber
+      - ola
+      - taxi
+      - bus
+      - train
+      - metro
+      - fuel
+      - petrol
+      - diesel
+      - parking
+      - toll
+      
+  - name: Travel
+    keywords:
+      - hotel
+      - flight
+      - travel
+      - booking
+      - trip
+      - vacation
+      - holiday
+      - resort
+      - airline
+      - train
+      
+  - name: Utilities
+    keywords:
+      - electricity
+      - water
+      - gas
+      - internet
+      - broadband
+      - mobile
+      - phone
+      - bill
+      - utility
+      - telecom
+
+# Note: To add a new category:
+# 1. Add entry to categories list above
+# 2. Regenerate training data (if needed): python3 create_synthetic_dataset.py --num-samples 7000
+# 3. Retrain model: python3 train_distilbert.py
+# 4. Spring Boot application will automatically use the new taxonomy
+

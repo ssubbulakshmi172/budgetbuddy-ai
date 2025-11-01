@@ -49,6 +49,9 @@ mybudget-ai/models_bert/
 # Ignore old timestamped models, keep only latest
 mybudget-ai/models/*_*.pkl
 !mybudget-ai/models/*_latest.pkl
+# Large model files (exceed GitHub 100MB limit)
+*.safetensors
+mybudget-ai/models/**/*.safetensors
 # Large CSV files
 *.csv
 !mybudget-ai/transactions_synthetic.csv

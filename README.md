@@ -16,8 +16,9 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 
 ✅ **End-to-End Autonomous Categorisation**
 - Ingest raw transaction data (Excel, CSV)
-- AI-powered categorisation via TF-IDF + Logistic Regression
-- Automatic confidence scoring
+- AI-powered categorisation via DistilBERT multi-task model
+- **Batch predictions** for faster processing of multiple transactions
+- Automatic confidence scoring with transaction type and intent detection
 
 ✅ **High Accuracy**
 - Macro F1: 0.8859 (very close to 0.90 target)
@@ -47,14 +48,17 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 ┌─────────────────────┐
 │  Spring Boot App   │  (Java + Thymeleaf)
 │  Port: 8080        │
+│  - Batch Predictions│
+│  - Manual Categories│
 └──────────┬──────────┘
            │ ProcessBuilder
            ▼
 ┌─────────────────────┐
 │  Local Inference   │  (Python + DistilBERT)
 │  inference_local.py│
-│  Offline Mode      │
-│  No Flask needed   │
+│  - Batch Support   │
+│  - Offline Mode    │
+│  - No Flask needed │
 └─────────────────────┘
            │
            ▼
@@ -62,7 +66,9 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 │  ML Model          │
 │  DistilBERT        │
 │  Multi-task        │
-│  Multi-task Heads  │
+│  - Category        │
+│  - Transaction Type│
+│  - Intent          │
 └─────────────────────┘
 ```
 
@@ -77,6 +83,7 @@ BudgetBuddy is a production-ready transaction categorisation system that:
    - Local model inference (no Flask server needed)
    - Called from Java via ProcessBuilder
    - Supports DistilBERT multi-task predictions
+   - **Batch prediction support** for faster processing
 
 3. **Training Pipeline** (`mybudget-ai/train_distilbert.py`)
    - DistilBERT multi-task training
@@ -107,8 +114,9 @@ pip install -r requirements.txt
 ```
 
 Key packages:
-- `scikit-learn` (TF-IDF, Logistic Regression)
-- `distilbert` (local inference)
+- `torch` (PyTorch for DistilBERT)
+- `transformers` (Hugging Face transformers library)
+- `scikit-learn` (evaluation metrics)
 - `pandas` (data processing)
 - `numpy` (numerical operations)
 - `matplotlib` (evaluation plots)
@@ -148,7 +156,20 @@ python create_synthetic_dataset.py --num-samples 7000
 python3 train_distilbert.py
 ```
 
-### 3. Verify Inference
+### 3. Train or Obtain the Model
+
+**Note**: The pre-trained model file (`model.safetensors`, 255 MB) is excluded from the repository due to GitHub's file size limit.
+
+**Option A: Train the Model** (Recommended - ~10-30 minutes):
+```bash
+cd mybudget-ai
+python3 train_distilbert.py
+```
+
+**Option B: Download Pre-trained Model** (if available):
+See `mybudget-ai/models/distilbert_multitask_latest/MODEL_DOWNLOAD.md` for instructions.
+
+### 4. Verify Inference
 
 The Spring Boot application uses local inference by default. No Flask server needed.
 For testing local inference directly:
@@ -159,7 +180,7 @@ python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
 
 The Spring Boot application will automatically use local inference when started.
 
-### 4. Start Spring Boot Application
+### 5. Start Spring Boot Application
 
 ```bash
 # From project root
@@ -168,7 +189,7 @@ The Spring Boot application will automatically use local inference when started.
 
 Application will start on `http://localhost:8080`
 
-### 5. Test the System
+### 6. Test the System
 
 1. **Import Transactions:**
    - Navigate to `http://localhost:8080/transactions/upload`
@@ -183,8 +204,14 @@ Application will start on `http://localhost:8080`
    - Navigate to `http://localhost:8080/dashboard`
    - View 6-month category comparison bar chart
    - View spending analytics and recent transactions
+   - **AI-Predicted Categories Dashboard**: Shows transactions categorized by ML predictions
    
-4. **Transaction Dashboard (Filtered):**
+4. **Manual Categories Dashboard:**
+   - Navigate to `http://localhost:8080/dashboard/manual` or `http://localhost:8080/dashboard_manual`
+   - View spending based on manually assigned categories
+   - Compare AI predictions vs manual assignments
+   
+5. **Transaction Dashboard (Filtered):**
    - Navigate to `http://localhost:8080/transactions/dashboard`
    - Filter by year and user
    - View category-wise month comparison
@@ -230,21 +257,47 @@ Application will start on `http://localhost:8080`
 
 ### Modify Taxonomy
 
+The system supports **dual-source taxonomy** - categories can be managed via:
+1. **Database** (Primary): UI-based category management via `/categories`
+2. **YAML File** (Secondary/Fallback): `mybudget-ai/categories.yml`
+
+**Training Pipeline Behavior:**
+- Loads categories from **both** database and YAML file
+- Merges categories from both sources (database takes precedence)
+- If database is unavailable, falls back to YAML file
+- Duplicate categories are automatically deduplicated
+
+**Edit via Database (Recommended):**
+- Navigate to `http://localhost:8080/categories`
+- Add/edit categories through the web UI
+- Changes are immediately available in the database
+
+**Edit via YAML File:**
 Edit `mybudget-ai/categories.yml`:
 
 ```yaml
 categories:
   - name: Groceries
-    keywords: ["grocery", "supermarket", "vegetables", "fruits"]
+    keywords:
+      - grocery
+      - supermarket
+      - vegetables
+      - fruits
   - name: Dining
-    keywords: ["restaurant", "cafe", "food", "starbucks"]
+    keywords:
+      - restaurant
+      - cafe
+      - food
+      - starbucks
   # Add more categories...
 ```
 
-After modification:
+**After modification:**
 1. Regenerate dataset (if needed): `python3 create_synthetic_dataset.py --samples 3000 --output transactions_distilbert.csv`
-2. Retrain model: `python3 train_distilbert.py`
+2. Retrain model: `python3 train_distilbert.py` (will merge DB + YAML categories)
 3. Spring Boot will automatically use the new model (local inference)
+
+**Note:** The YAML file serves as both a fallback and a reference. Categories in the database will take precedence, but any additional categories in the YAML file will be included in the merged taxonomy.
 
 ### Adjust Model Parameters
 
@@ -438,6 +491,14 @@ cd mybudget-ai
 python3 train_distilbert.py
 ```
 
+### Batch Prediction Performance
+
+The system uses **batch predictions** for faster processing when importing multiple transactions:
+- Processes multiple transactions in a single inference call
+- Significantly faster than individual predictions
+- Falls back to individual predictions if batch fails
+- Logs batch prediction completion status
+
 ### Database Connection Issues
 
 Verify MySQL is running:
@@ -451,11 +512,23 @@ Check `application.properties` has correct credentials.
 
 ## 📚 Additional Documentation
 
-- [REQUIREMENTS_COMPLIANCE.md](REQUIREMENTS_COMPLIANCE.md) - **Comprehensive requirements compliance assessment** mapping implementation to specification
+- [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) - Guide for creating UI demo recordings
+- [RECORDING_STEPS.md](RECORDING_STEPS.md) - Step-by-step recording instructions
 - [DATASET.md](DATASET.md) - Dataset source, preprocessing, and reproducibility
-- [EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md) - Gap analysis and implementation roadmap
-- [LOCAL_INFERENCE_GUIDE.md](LOCAL_INFERENCE_GUIDE.md) - Local inference implementation guide
 - [mybudget-ai/requirements.txt](mybudget-ai/requirements.txt) - Python dependencies
+
+### Demo Recording
+
+Create UI demonstrations with:
+```bash
+# Automatic recording with FFmpeg
+./record_with_ffmpeg.sh
+
+# Manual recording script
+./demo_ui_recording.sh
+```
+
+See [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) for detailed instructions.
 
 ---
 
@@ -494,6 +567,12 @@ Check `application.properties` has correct credentials.
 
 ---
 
-**Last Updated:** January 2025  
-**Version:** 1.0.0  
+**Last Updated:** November 2025  
+**Version:** 1.1.0  
 **Status:** Production Ready
+
+### Recent Updates (v1.1.0)
+- ✨ **Batch Predictions**: Faster processing for bulk transaction imports
+- 📊 **Manual Categories Dashboard**: Separate view for manually assigned categories
+- 🎥 **Demo Recording Tools**: Scripts for UI demonstration recordings
+- 🔄 **Enhanced Dashboard**: Improved analytics and category comparison views
