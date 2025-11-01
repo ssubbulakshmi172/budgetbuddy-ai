@@ -35,12 +35,6 @@ public class CategoryKeywordController {
         return "redirect:/categories/"; // Redirect back to the category keywords list
     }
 
-    @GetMapping("/{categoryName}")
-    public List<CategoryKeyword> getKeywordsByCategory(@PathVariable String categoryName) {
-        return categoryKeywordService.getKeywordsByCategory(categoryName);
-    }
-
- 
     @GetMapping("/add")
     public String showAddCategoryForm(Model model) {
         model.addAttribute("categoryKeyword", new CategoryKeyword());  // Ensure you're using 'categoryKeyword' as the model attribute
@@ -65,8 +59,13 @@ public class CategoryKeywordController {
             return "redirect:/categories/list?error=duplicate";  // Redirect with error message if duplicate found
         }
 
+        // Set default categoriesFor to "Manual" if not provided
+        if (categoryKeyword.getCategoriesFor() == null || categoryKeyword.getCategoriesFor().trim().isEmpty()) {
+            categoryKeyword.setCategoriesFor("Manual");
+        }
+
         categoryKeywordService.saveCategoryKeyword(categoryKeyword);  // Save category keyword to database
-        return "redirect:/categories/list";  // Redirect to the list of categories after saving
+        return "redirect:/categories";  // Redirect to the list of categories after saving
     }
 
     @GetMapping("/list")
@@ -74,5 +73,51 @@ public class CategoryKeywordController {
         List<CategoryKeyword> categoryKeywords = categoryKeywordService.getAllCategories(); // Fetch from DB
         model.addAttribute("categoryKeywords", categoryKeywords);
         return "categories/list";
+    }
+
+    @GetMapping("/edit/{id}")
+    public String showEditCategoryForm(@PathVariable Long id, Model model) {
+        CategoryKeyword categoryKeyword = categoryKeywordService.getCategoryKeywordById(id);
+        if (categoryKeyword == null) {
+            return "redirect:/categories?error=notfound";
+        }
+        model.addAttribute("categoryKeyword", categoryKeyword);
+        return "categories/edit";
+    }
+
+    @PostMapping("/edit/{id}")
+    public String updateCategoryKeyword(@PathVariable Long id, 
+                                        @ModelAttribute CategoryKeyword categoryKeyword) {
+        CategoryKeyword existing = categoryKeywordService.getCategoryKeywordById(id);
+        if (existing == null) {
+            return "redirect:/categories?error=notfound";
+        }
+
+        // Check if keyword changed and if new keyword already exists
+        String newKeyword = categoryKeyword.getKeyword().toLowerCase();
+        if (!existing.getKeyword().equalsIgnoreCase(newKeyword) && 
+            categoryKeywordService.existsByKeyword(newKeyword)) {
+            return "redirect:/categories/edit/" + id + "?error=duplicate";
+        }
+
+        // Update fields
+        existing.setCategoryName(categoryKeyword.getCategoryName());
+        existing.setKeyword(newKeyword);
+        
+        // Update categoriesFor if provided, otherwise keep existing
+        if (categoryKeyword.getCategoriesFor() != null && 
+            !categoryKeyword.getCategoriesFor().trim().isEmpty()) {
+            existing.setCategoriesFor(categoryKeyword.getCategoriesFor());
+        } else if (existing.getCategoriesFor() == null) {
+            existing.setCategoriesFor("Manual");
+        }
+
+        categoryKeywordService.saveCategoryKeyword(existing);
+        return "redirect:/categories?success=updated";
+    }
+
+    @GetMapping("/{categoryName}")
+    public List<CategoryKeyword> getKeywordsByCategory(@PathVariable String categoryName) {
+        return categoryKeywordService.getKeywordsByCategory(categoryName);
     }
 }

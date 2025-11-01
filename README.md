@@ -48,21 +48,21 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 │  Spring Boot App   │  (Java + Thymeleaf)
 │  Port: 8080        │
 └──────────┬──────────┘
-           │ HTTP POST
+           │ ProcessBuilder
            ▼
 ┌─────────────────────┐
-│  Flask API         │  (Python + Scikit-learn)
-│  Port: 8000        │
-│  /predict          │
-│  /feedback         │
-│  /health           │
+│  Local Inference   │  (Python + DistilBERT)
+│  inference_local.py│
+│  Offline Mode      │
+│  No Flask needed   │
 └─────────────────────┘
            │
            ▼
 ┌─────────────────────┐
 │  ML Model          │
-│  TF-IDF Vectorizer │
-│  Logistic Reg.     │
+│  DistilBERT        │
+│  Multi-task        │
+│  Multi-task Heads  │
 └─────────────────────┘
 ```
 
@@ -73,14 +73,14 @@ BudgetBuddy is a production-ready transaction categorisation system that:
    - User interface (Thymeleaf templates)
    - Integration with ML service
 
-2. **Flask ML Service** (`mybudget-ai/app.py`)
-   - Model inference endpoint
-   - Feedback collection
-   - Health monitoring
+2. **Local Inference Service** (`mybudget-ai/inference_local.py`)
+   - Local model inference (no Flask server needed)
+   - Called from Java via ProcessBuilder
+   - Supports DistilBERT multi-task predictions
 
-3. **Training Pipeline** (`mybudget-ai/train_model.py`)
-   - Data preprocessing
-   - Model training & evaluation
+3. **Training Pipeline** (`mybudget-ai/train_distilbert.py`)
+   - DistilBERT multi-task training
+   - Data preprocessing and evaluation
    - Report generation
 
 4. **Synthetic Data Generator** (`mybudget-ai/create_synthetic_dataset.py`)
@@ -108,7 +108,7 @@ pip install -r requirements.txt
 
 Key packages:
 - `scikit-learn` (TF-IDF, Logistic Regression)
-- `flask` (API server)
+- `distilbert` (local inference)
 - `pandas` (data processing)
 - `numpy` (numerical operations)
 - `matplotlib` (evaluation plots)
@@ -144,24 +144,20 @@ source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 # Generate synthetic dataset from Hugging Face
 python create_synthetic_dataset.py --num-samples 7000
 
-# Train model
-python train_model.py
+# Train DistilBERT model
+python3 train_distilbert.py
 ```
 
-### 3. Start ML Service
+### 3. Verify Inference
 
+The Spring Boot application uses local inference by default. No Flask server needed.
+For testing local inference directly:
 ```bash
 cd mybudget-ai
-source venv/bin/activate
-python app.py
+python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
 ```
 
-Service will start on `http://127.0.0.1:8000`
-
-Verify:
-```bash
-curl http://127.0.0.1:8000/health
-```
+The Spring Boot application will automatically use local inference when started.
 
 ### 4. Start Spring Boot Application
 
@@ -246,83 +242,66 @@ categories:
 ```
 
 After modification:
-1. Regenerate dataset (if needed): `python create_synthetic_dataset.py`
-2. Retrain model: `python train_model.py`
-3. Restart Flask API to load new model
+1. Regenerate dataset (if needed): `python3 create_synthetic_dataset.py --samples 3000 --output transactions_distilbert.csv`
+2. Retrain model: `python3 train_distilbert.py`
+3. Spring Boot will automatically use the new model (local inference)
 
 ### Adjust Model Parameters
 
-Edit `mybudget-ai/train_model.py`:
+Edit `mybudget-ai/train_distilbert.py`:
 
 ```python
-TFIDF_MAX_FEATURES = 3000  # Increase for more features
-TFIDF_NGRAM = (1, 2)        # unigrams + bigrams
-F1_TARGET = 0.90
+EPOCHS = 4              # Training epochs
+LEARNING_RATE = 2e-5    # Learning rate
+BATCH_SIZE = 16         # Batch size
 ```
 
 ---
 
-## 📡 API Endpoints
+## 📡 Local Inference
 
-### Flask ML Service (`http://127.0.0.1:8000`)
+The application uses local inference (no API server needed). Inference is performed via Python script called from Java using ProcessBuilder.
 
-#### `POST /predict`
+### How It Works
 
-Predict category for a transaction description.
+1. **Java Service** (`LocalModelInferenceService`) calls Python script
+2. **Python Script** (`inference_local.py`) loads DistilBERT model
+3. **Model Prediction** returns JSON with category, transaction_type, intent, and confidence
+4. **Java Service** parses JSON and returns results
 
-**Request:**
-```json
-{
-  "description": "UPI/PAY/1234567890/STARBUCKS/..."
-}
+### Configuration
+
+In `application.properties`:
+```properties
+inference.mode=local
+python.command=python3
+python.inference.script=mybudget-ai/inference_local.py
 ```
 
-**Response:**
+### Testing Locally
+
+```bash
+cd mybudget-ai
+python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
+```
+
+**Example Output:**
 ```json
 {
-  "description": "UPI/PAY/1234567890/STARBUCKS/...",
+  "model_type": "DistilBERT",
+  "transaction_type": "P2C",
   "predicted_category": "Dining",
-  "confidence": 0.92,
+  "intent": "purchase",
+  "confidence": {
+    "transaction_type": 0.98,
+    "category": 0.92,
+    "intent": 0.95
+  },
   "all_probabilities": {
-    "Dining": 0.92,
-    "Groceries": 0.05,
-    "Entertainment": 0.02,
-    ...
+    "transaction_type": {...},
+    "category": {...},
+    "intent": {...}
   }
-}
-```
-
-#### `POST /feedback`
-
-Submit feedback for incorrect predictions.
-
-**Request:**
-```json
-{
-  "description": "UPI/PAY/1234567890/STARBUCKS/...",
-  "predicted_category": "Dining",
-  "correct_category": "Entertainment"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "feedback_recorded",
-  "message": "Feedback saved to feedback.csv"
-}
-```
-
-#### `GET /health`
-
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "model_loaded": true,
-  "vectorizer_loaded": true
 }
 ```
 
@@ -334,27 +313,25 @@ Health check endpoint.
 
 ```bash
 cd mybudget-ai
-python train_model.py
+python3 train_distilbert.py
 ```
 
 This will:
-1. Load `transactions.csv`
-2. Split into train/test (80/20)
-3. Train TF-IDF + Logistic Regression model
-4. Generate evaluation reports
-5. Save model artifacts
+1. Load taxonomy from database
+2. Load `transactions_distilbert.csv`
+3. Split into train/test (80/20)
+4. Train DistilBERT multi-task model
+5. Generate evaluation reports
+6. Save model artifacts
 
 ### View Results
 
 ```bash
 # JSON metrics
-cat reports/evaluation_metrics_*.json
+cat reports/distilbert_metrics_*.json | python3 -m json.tool
 
-# Confusion matrix
-open reports/confusion_matrix_*.png
-
-# Top keywords
-cat reports/top_keywords_per_class_*.json
+# Check model directory
+ls -lh models/distilbert_multitask_latest/
 ```
 
 ---
@@ -377,18 +354,17 @@ budgetbuddy-ai/
 │   │   └── dashboard_latest.html  # Main dashboard
 │   └── static/             # CSS, JS assets
 ├── mybudget-ai/            # ML Service
-│   ├── app.py              # Flask API server
-│   ├── train_model.py      # Training pipeline
+│   ├── inference_local.py  # Local inference script
+│   ├── train_distilbert.py # DistilBERT training pipeline
 │   ├── create_synthetic_dataset.py  # Dataset generator
-│   ├── categories.yml      # Taxonomy configuration
-│   ├── transactions_synthetic.csv  # Synthetic training data
-│   ├── models/             # Saved model files (*_latest.pkl)
-│   ├── reports/            # Evaluation reports (confusion matrix, metrics)
+│   ├── categories.yml      # Taxonomy configuration (optional)
+│   ├── transactions_distilbert.csv  # Training data
+│   ├── models/             # Saved model files (DistilBERT)
+│   ├── reports/            # Evaluation reports (metrics JSON)
 │   └── logs/               # Training logs
 ├── build.gradle            # Gradle dependencies
 ├── README.md               # Main documentation
 ├── DATASET.md              # Dataset documentation
-└── PROJECT_COMPLIANCE.md   # Compliance report
 ```
 
 ---
@@ -415,7 +391,7 @@ budgetbuddy-ai/
 
 5. **Train model** (optional - pre-trained model included):
    ```bash
-   python train_model.py
+   python3 train_distilbert.py
    ```
 
 6. **Start services** (see Quick Start section)
@@ -436,29 +412,30 @@ This project is developed for educational/competition purposes. Dataset sourced 
 
 ## 🐛 Troubleshooting
 
-### Flask API Connection Refused
+### Local Inference Errors
 
+If inference fails, check:
+
+1. **Python script exists:**
+   ```bash
+   ls -lh mybudget-ai/inference_local.py
+   ```
+
+2. **Model exists:**
+   ```bash
+   ls -lh mybudget-ai/models/distilbert_multitask_latest/
+   ```
+
+3. **Test directly:**
+   ```bash
+   cd mybudget-ai
+   python3 inference_local.py "test transaction"
+   ```
+
+If model missing, train it:
 ```bash
-# Check if Flask is running
-curl http://127.0.0.1:8000/health
-
-# If not, start it:
 cd mybudget-ai
-source venv/bin/activate
-python app.py
-```
-
-### Model Not Found Error
-
-Ensure models exist:
-```bash
-ls mybudget-ai/models/category_model_latest.pkl
-```
-
-If missing, train model:
-```bash
-cd mybudget-ai
-python train_model.py
+python3 train_distilbert.py
 ```
 
 ### Database Connection Issues
@@ -474,8 +451,10 @@ Check `application.properties` has correct credentials.
 
 ## 📚 Additional Documentation
 
-- [PROJECT_COMPLIANCE.md](PROJECT_COMPLIANCE.md) - Detailed compliance report against competition requirements
+- [REQUIREMENTS_COMPLIANCE.md](REQUIREMENTS_COMPLIANCE.md) - **Comprehensive requirements compliance assessment** mapping implementation to specification
 - [DATASET.md](DATASET.md) - Dataset source, preprocessing, and reproducibility
+- [EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md) - Gap analysis and implementation roadmap
+- [LOCAL_INFERENCE_GUIDE.md](LOCAL_INFERENCE_GUIDE.md) - Local inference implementation guide
 - [mybudget-ai/requirements.txt](mybudget-ai/requirements.txt) - Python dependencies
 
 ---
@@ -490,7 +469,8 @@ Check `application.properties` has correct credentials.
 
 - **Dataset:** Hugging Face `deepakjoshi1606/mock-upi-txn-data`
 - **ML Libraries:** Scikit-learn, NumPy, Pandas, Matplotlib
-- **Web Framework:** Spring Boot, Flask
+- **Web Framework:** Spring Boot
+- **ML Framework:** PyTorch, Transformers (DistilBERT)
 - **UI:** Bootstrap 5, Chart.js, Thymeleaf
 
 ---
@@ -509,7 +489,8 @@ Check `application.properties` has correct credentials.
 ⚠️ **Near Complete:**
 - Macro F1 Score: 0.8859 (target: ≥0.90) - **97% of target**
 
-📋 **For detailed compliance analysis, see:** [PROJECT_COMPLIANCE.md](PROJECT_COMPLIANCE.md)
+📋 **For detailed compliance analysis, see:** 
+- [REQUIREMENTS_COMPLIANCE.md](REQUIREMENTS_COMPLIANCE.md) - **Requirements specification compliance**
 
 ---
 

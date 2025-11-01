@@ -20,56 +20,93 @@
 <body>
     <div layout:fragment="content">
         <div class="container">
+            <!-- Welcome Section -->
             <div class="page-header text-center mb-5">
                 <h1 class="display-4 fw-bold mb-3 welcome-title">
                     <span class="welcome-text">Welcome to </span><span class="brand-text">BudgetBuddy</span>
                 </h1>
                 <p class="lead text-muted">Your personal finance management solution</p>
-            </div>
-            
-            <!-- Financial Overview Section -->
-            <div class="row g-4 mb-5">
-                <div class="col-md-4 mb-4">
-                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
-                        <div class="card-body text-center p-4">
-                            <i class="bi bi-graph-up-arrow display-4 text-success mb-3"></i>
-                            <h3 class="h5 fw-bold">Total Income</h3>
-                            <p class="display-5 fw-bold text-success" th:text="${#numbers.formatDecimal(totalIncome, 1, 2)}">₹0.00</p>
-                            <p class="text-muted small">This month</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
-                        <div class="card-body text-center p-4">
-                            <i class="bi bi-graph-down-arrow display-4 text-danger mb-3"></i>
-                            <h3 class="h5 fw-bold">Total Expenses</h3>
-                            <p class="display-5 fw-bold text-danger" th:text="${#numbers.formatDecimal(totalExpenses, 1, 2)}">₹0.00</p>
-                            <p class="text-muted small">This month</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
-                        <div class="card-body text-center p-4">
-                            <i class="bi bi-piggy-bank display-4 text-primary mb-3"></i>
-                            <h3 class="h5 fw-bold">Net Savings</h3>
-                            <p class="display-5 fw-bold" th:classappend="${totalSavings >= 0} ? 'text-success' : 'text-danger'" 
-                               th:text="${#numbers.formatDecimal(totalSavings, 1, 2)}">₹0.00</p>
-                            <p class="text-muted small" th:text="'Savings Rate: ' + ${#numbers.formatDecimal(savingsPercentage, 1, 1)} + '%'">Savings Rate</p>
-                        </div>
+                
+                <!-- Privacy Note -->
+                <div class="mt-4">
+                    <div class="d-inline-flex align-items-center px-4 py-2 rounded privacy-notice" style="background: linear-gradient(135deg, rgba(28, 200, 138, 0.1) 0%, rgba(28, 200, 138, 0.05) 100%); border: 1px solid rgba(28, 200, 138, 0.3);">
+                        <i class="bi bi-shield-lock-fill text-success me-2"></i>
+                        <span class="text-muted small fw-semibold">
+                            <strong class="text-success">100% Local & Private</strong> - Your data never leaves your device
+                        </span>
                     </div>
                 </div>
             </div>
             
-            <!-- Quick Actions Section -->
-            <div class="row g-4 mb-5">
-                <div class="col-12 mb-3">
-                    <h2 class="h4 fw-bold text-center">Quick Actions</h2>
-                    <p class="text-muted text-center">Manage your finances efficiently</p>
+            <!-- Quick Actions Context Section -->
+            <div class="row mb-5">
+                <div class="col-12 mb-4">
+                    <h2 class="h4 fw-bold mb-3 text-center">
+                        <i class="bi bi-lightning-charge text-primary me-2"></i>Quick Actions
+                    </h2>
+                    <p class="text-muted text-center mb-4">Get started with these essential features</p>
                 </div>
                 
-                <!-- Transactions Card -->
+                <!-- Quick Actions Cards -->
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-add quick-action-card" th:href="@{/transactions/new}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon mb-3">
+                                <i class="bi bi-plus-circle"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">New Transaction</h3>
+                            <p class="text-muted mb-0 small">Create manually</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-upload quick-action-card" th:href="@{/transactions/transaction-upload}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon mb-3">
+                                <i class="bi bi-cloud-upload"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Upload Transaction</h3>
+                            <p class="text-muted mb-0 small">Import Excel/CSV</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-dashboard quick-action-card" th:href="@{/dashboard}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon mb-3">
+                                <i class="bi bi-speedometer2"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Dashboard</h3>
+                            <p class="text-muted mb-0 small">View analytics</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-categories quick-action-card" th:href="@{/categories}">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-card-icon mb-3">
+                                <i class="bi bi-tags"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">Categories</h3>
+                            <p class="text-muted mb-0 small">Manage categories</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Other Actions Section -->
+            <div class="row g-4 mb-5">
+                <div class="col-12 mb-3">
+                    <h2 class="h4 fw-bold text-center">
+                        <i class="bi bi-grid text-primary me-2"></i>Other Actions
+                    </h2>
+                    <p class="text-muted text-center">Additional tools and options</p>
+                </div>
+                
+                <!-- View Transactions Card -->
                 <div class="col-md-4 col-sm-6">
                     <a class="card h-100 text-decoration-none card-hover feature-card feature-card-transactions" th:href="@{/transactions}">
                         <div class="card-body text-center p-4">
@@ -77,52 +114,13 @@
                                 <i class="bi bi-cash-stack"></i>
                             </div>
                             <h3 class="h5 fw-bold mb-2">View Transactions</h3>
-                            <p class="text-muted mb-0">Track all your financial transactions</p>
+                            <p class="text-muted mb-0">Browse and manage all transactions</p>
                             <span class="badge bg-primary bg-opacity-10 text-primary mt-2" th:text="${transactionCount} + ' total'">0 total</span>
                         </div>
                     </a>
                 </div>
                 
-                <!-- Upload Transactions Card -->
-                <div class="col-md-4 col-sm-6">
-                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-upload" th:href="@{/transactions/transaction-upload}">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-card-icon mb-3">
-                                <i class="bi bi-cloud-upload"></i>
-                            </div>
-                            <h3 class="h5 fw-bold mb-2">Upload Statement</h3>
-                            <p class="text-muted mb-0">Import bank statements easily</p>
-                        </div>
-                    </a>
-                </div>
-                
-                <!-- Dashboard Card -->
-                <div class="col-md-4 col-sm-6">
-                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-dashboard" th:href="@{/transactions/dashboard}">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-card-icon mb-3">
-                                <i class="bi bi-speedometer2"></i>
-                            </div>
-                            <h3 class="h5 fw-bold mb-2">Analytics Dashboard</h3>
-                            <p class="text-muted mb-0">Get insights and visual reports</p>
-                        </div>
-                    </a>
-                </div>
-                
-                <!-- Categories Card -->
-                <div class="col-md-4 col-sm-6">
-                    <a class="card h-100 text-decoration-none card-hover feature-card feature-card-categories" th:href="@{/categories}">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-card-icon mb-3">
-                                <i class="bi bi-tags"></i>
-                            </div>
-                            <h3 class="h5 fw-bold mb-2">Categories</h3>
-                            <p class="text-muted mb-0">Organize spending by categories</p>
-                        </div>
-                    </a>
-                </div>
-                
-                <!-- Filter Transactions Card -->
+                <!-- Filter & Search Card -->
                 <div class="col-md-4 col-sm-6">
                     <a class="card h-100 text-decoration-none card-hover feature-card feature-card-filter" th:href="@{/transactions/filter-form}">
                         <div class="card-body text-center p-4">
@@ -130,7 +128,7 @@
                                 <i class="bi bi-funnel"></i>
                             </div>
                             <h3 class="h5 fw-bold mb-2">Filter & Search</h3>
-                            <p class="text-muted mb-0">Find specific transactions quickly</p>
+                            <p class="text-muted mb-0">Find transactions by filters</p>
                         </div>
                     </a>
                 </div>
@@ -216,6 +214,47 @@
                                 Keep track of all your transactions. Regular monitoring helps you stay within budget 
                                 and achieve your financial goals faster.
                             </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Financial Overview Section (Income/Expense/Savings) -->
+            <div class="row g-4 mt-5 pt-4">
+                <div class="col-12 text-center mb-4">
+                    <h2 class="h3 fw-bold">
+                        <i class="bi bi-piggy-bank text-primary me-2"></i>Financial Summary
+                    </h2>
+                    <p class="text-muted">Your current month financial overview</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-graph-up-arrow display-4 text-success mb-3"></i>
+                            <h3 class="h5 fw-bold">Total Income</h3>
+                            <p class="display-5 fw-bold text-success" th:text="${#numbers.formatDecimal(totalIncome, 1, 2)}">₹0.00</p>
+                            <p class="text-muted small">This month</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-graph-down-arrow display-4 text-danger mb-3"></i>
+                            <h3 class="h5 fw-bold">Total Expenses</h3>
+                            <p class="display-5 fw-bold text-danger" th:text="${#numbers.formatDecimal(totalExpenses, 1, 2)}">₹0.00</p>
+                            <p class="text-muted small">This month</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm stats-card finance-stat-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-piggy-bank display-4 text-primary mb-3"></i>
+                            <h3 class="h5 fw-bold">Net Savings</h3>
+                            <p class="display-5 fw-bold" th:classappend="${totalSavings >= 0} ? 'text-success' : 'text-danger'" 
+                               th:text="${#numbers.formatDecimal(totalSavings, 1, 2)}">₹0.00</p>
+                            <p class="text-muted small" th:text="'Savings Rate: ' + ${#numbers.formatDecimal(savingsPercentage, 1, 1)} + '%'">Savings Rate</p>
                         </div>
                     </div>
                 </div>

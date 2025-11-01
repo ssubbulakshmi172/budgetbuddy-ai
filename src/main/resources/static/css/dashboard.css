@@ -21,21 +21,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(var(--primary-rgb), 0.1);
+    background-color: var(--bb-primary-light);
     border-radius: 0.5rem;
-    color: var(--primary-color);
+    color: var(--bb-primary);
 }
 
 /* Progress Bars */
 .progress {
-    background-color: var(--light-color);
+    background-color: var(--bb-gray-100);
     border-radius: 100px;
     height: 0.5rem;
     overflow: hidden;
 }
 
 .progress-bar {
-    background-color: var(--primary-color);
+    background-color: var(--bb-primary);
     transition: width 0.6s ease;
 }
 
@@ -47,10 +47,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary-color);
-    justify-content: center;
-    color: white;
+    background-color: var(--bb-primary-light);
+    color: var(--bb-primary);
     flex-shrink: 0;
 }
 
@@ -190,7 +188,7 @@
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: 1.25rem;
-    color: var(--dark);
+    color: var(--bb-gray-900);
 }
 
 /* Highlight Card */
@@ -236,7 +234,7 @@
 
 .highlight-card .btn {
     background: white;
-    color: var(--primary-color);
+    color: var(--bb-primary);
     font-weight: 600;
     padding: 0.75rem;
     border-radius: 8px;
@@ -319,10 +317,6 @@
     color: white;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-    margin-right: 1rem;
-    color: white;
-    flex-shrink: 0;
-}
 
 .transaction-details {
     flex-grow: 1;
@@ -335,7 +329,7 @@
 
 .transaction-category {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--bb-gray-600);
 }
 
 .transaction-amount {

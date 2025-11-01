@@ -1,19 +1,36 @@
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/master}">
 
 <head>
     <title>Transaction List - BudgetBuddy</title>
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <style>
+        .table-row-hover:hover {
+            background-color: rgba(102, 178, 255, 0.05);
+            transition: background-color 0.2s ease;
+        }
+    </style>
 </head>
 
 <body>
 <div layout:fragment="content">
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0">Transactions</h1>
-            <a th:href="@{/transactions/new}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-2"></i>Add New Transaction
-            </a>
+    <div class="container">
+        <div class="page-header text-center mb-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div class="flex-grow-1 text-start">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <span class="welcome-text">Transaction </span><span class="brand-text">List</span>
+                    </h1>
+                    <p class="lead text-muted">View and manage all your transactions</p>
+                </div>
+                <div>
+                    <a th:href="@{/transactions/new}" class="btn btn-primary btn-lg shadow-sm">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Transaction
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm">
@@ -28,7 +45,31 @@
                                         <input class="form-check-input" type="checkbox" id="selectAll">
                                     </div>
                                 </th>
-                                <th style="min-width: 120px;">Date</th>
+                                <th style="min-width: 120px;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span>Date</span>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a th:href="@{/transactions(sort='date-asc')}" 
+                                               class="btn btn-sm"
+                                               th:class="${currentSort == 'date-asc' ? 'btn-primary' : 'btn-outline-secondary'}"
+                                               title="Sort by Date (Ascending - Oldest First)">
+                                                <i class="bi bi-arrow-up"></i>
+                                            </a>
+                                            <a th:href="@{/transactions(sort='date-desc')}" 
+                                               class="btn btn-sm"
+                                               th:class="${currentSort == 'date-desc' ? 'btn-primary' : 'btn-outline-secondary'}"
+                                               title="Sort by Date (Descending - Newest First)">
+                                                <i class="bi bi-arrow-down"></i>
+                                            </a>
+                                            <a th:href="@{/transactions}" 
+                                               class="btn btn-sm btn-outline-secondary"
+                                               th:if="${currentSort != null}"
+                                               title="Reset Sort">
+                                                <i class="bi bi-x"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </th>
                                 <th>Description</th>
                                 <th style="min-width: 150px;">Category</th>
                                 <th style="min-width: 150px;">Predicted Category</th> <!-- 🟢 NEW COLUMN -->
@@ -37,7 +78,7 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <tr th:each="transaction : ${transactions}" class="transaction-row">
+                            <tr th:each="transaction : ${transactions}" class="transaction-row table-row-hover">
                                 <td class="ps-4">
                                     <div class="form-check">
                                         <input class="form-check-input transaction-checkbox" type="checkbox"

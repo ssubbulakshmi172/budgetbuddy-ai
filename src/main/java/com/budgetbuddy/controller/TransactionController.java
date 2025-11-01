@@ -6,6 +6,7 @@ import com.budgetbuddy.model.User;
 import com.budgetbuddy.repository.UserRepository;
 import com.budgetbuddy.service.CategoryKeywordService;
 import com.budgetbuddy.service.TransactionCategorizationService;
+import com.budgetbuddy.service.LocalModelInferenceService;
 import com.budgetbuddy.service.TransactionService;
 import com.budgetbuddy.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,13 +19,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import jakarta.annotation.PostConstruct;
 
 @Controller
 @RequestMapping("/transactions")
@@ -46,14 +47,27 @@ public class TransactionController {
 
     @Autowired
     private TransactionCategorizationService categorizationService;
+    
+    /**
+     * Log service injection status
+     */
+    @PostConstruct
+    public void init() {
+        if (categorizationService != null) {
+            logger.info("✅ TransactionController: TransactionCategorizationService injected successfully");
+        } else {
+            logger.error("❌ TransactionController: TransactionCategorizationService is NULL!");
+        }
+    }
 
 
     @GetMapping
-    public String listTransactions(Model model) {
-        logger.info("Entering listTransactions method");
+    public String listTransactions(@RequestParam(required = false) String sort, Model model) {
+        logger.info("Entering listTransactions method with sort parameter: {}", sort);
         try {
-            List<Transaction> transactions = transactionService.getAllTransactions();
+            List<Transaction> transactions = transactionService.getAllTransactions(sort);
             model.addAttribute("transactions", transactions);
+            model.addAttribute("currentSort", sort);
             logger.debug("Fetched {} transactions", transactions.size());
         } catch (Exception e) {
             logger.error("Error occurred while fetching transactions: {}", e.getMessage(), e);
@@ -62,17 +76,119 @@ public class TransactionController {
         return "transaction/transaction-list";
     }
 
+    @GetMapping("/new")
+    public String newTransactionForm(Model model) {
+        logger.info("Entering newTransactionForm method");
+        try {
+            Transaction transaction = new Transaction();
+            transaction.setDate(LocalDate.now());
+            model.addAttribute("transaction", transaction);
+            model.addAttribute("users", userService.getAllUsers());
+            logger.debug("Created new transaction form");
+        } catch (Exception e) {
+            logger.error("Error occurred while creating new transaction form: {}", e.getMessage(), e);
+        }
+        logger.info("Exiting newTransactionForm method");
+        return "transaction/transaction-form";
+    }
 
     @PostMapping
-    public String saveTransaction(@ModelAttribute Transaction transaction) {
+    public String saveTransaction(@ModelAttribute Transaction transaction,
+                                  @RequestParam(value = "user", required = false) Long userId,
+                                  Model model) {
         logger.info("Entering saveTransaction method with transaction: {}", transaction);
+        logger.info("Received userId parameter: {}", userId);
+        logger.info("🔍 DEBUG: Transaction narration value: '{}' (null={}, empty={})", 
+            transaction.getNarration(), 
+            transaction.getNarration() == null,
+            transaction.getNarration() != null && transaction.getNarration().trim().isEmpty());
+        logger.info("🔍 DEBUG: categorizationService is null: {}", categorizationService == null);
+        long startTime = System.currentTimeMillis();
         try {
+            // Handle user binding - convert userId to User object
+            if (userId != null) {
+                User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+                transaction.setUser(user);
+                logger.info("Set user for transaction: {}", user);
+            } else if (transaction.getUser() != null && transaction.getUser().getId() != null) {
+                // If user object has ID but wasn't properly bound, fetch it
+                User user = userRepository.findById(transaction.getUser().getId())
+                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + transaction.getUser().getId()));
+                transaction.setUser(user);
+            } else {
+                logger.warn("No user specified for transaction");
+            }
+            
+            // Calculate amount if not set (deposit - withdrawal)
+            if (transaction.getAmount() == null) {
+                double deposit = transaction.getDepositAmt() != null ? transaction.getDepositAmt() : 0.0;
+                double withdrawal = transaction.getWithdrawalAmt() != null ? transaction.getWithdrawalAmt() : 0.0;
+                transaction.setAmount(deposit - withdrawal);
+            }
+            List<CategoryKeyword> categoryKeywords = categoryKeywordService.getAllCategories();
+            
+            // Set full prediction (category, transaction_type, intent, confidence) if narration exists
+            long inferenceStartTime = System.currentTimeMillis();
+            if (transaction.getNarration() != null && !transaction.getNarration().trim().isEmpty()) {
+                logger.info("Calling categorization for narration: '{}'", transaction.getNarration());
+                try {
+                    LocalModelInferenceService.PredictionResult prediction = 
+                        categorizationService.getFullPrediction(transaction.getNarration());
+
+                    String categoryName = categoryKeywords.stream()
+                            .filter(keyword -> transaction.getNarration().matches("(?i).*\\b" + Pattern.quote(keyword.getKeyword()) + "\\b.*"))
+                            .map(CategoryKeyword::getCategoryName)
+                            .findFirst()
+                            .orElse(null);
+                    transaction.setCategoryName(categoryName);
+
+                    transaction.setPredictedCategory(prediction.getPredictedCategory());
+                    transaction.setPredictedTransactionType(prediction.getTransactionType());
+                    transaction.setPredictedIntent(prediction.getIntent());
+                    transaction.setPredictionConfidence(prediction.getConfidence());
+                    long inferenceTime = System.currentTimeMillis() - inferenceStartTime;
+                    logger.info("✅ Prediction result: category={}, type={}, intent={}, confidence={}, time={}ms", 
+                        prediction.getPredictedCategory(), prediction.getTransactionType(), 
+                        prediction.getIntent(), prediction.getConfidence(), inferenceTime);
+                } catch (Exception e) {
+                    logger.error("❌ Failed to predict category for transaction '{}': {}", 
+                        transaction.getNarration(), e.getMessage(), e);
+                    transaction.setPredictedCategory("Uncategorized");
+                }
+            } else {
+                logger.warn("⚠️ Narration is null or empty, skipping categorization");
+            }
+            
             transactionService.saveTransaction(transaction);
-            logger.info("Transaction saved successfully with ID: {}", transaction.getId());
+            long totalTime = System.currentTimeMillis() - startTime;
+            logger.info("Transaction saved successfully with ID: {} in {}ms", transaction.getId(), totalTime);
+            
+            // Add saved transaction and timing to model for display
+            model.addAttribute("savedTransaction", transaction);
+            model.addAttribute("saveTime", totalTime);
+            model.addAttribute("users", userService.getAllUsers());
+            // Load distinct categories for dropdown
+            List<String> categories = categoryKeywordService.getDistinctCategories();
+            model.addAttribute("categories", categories);
+            
+            // Create a new transaction object for the form
+            Transaction newTransaction = new Transaction();
+            newTransaction.setDate(LocalDate.now());
+            model.addAttribute("transaction", newTransaction);
+            model.addAttribute("success", "Transaction saved successfully!");
+            
+            return "transaction/transaction-form";
         } catch (Exception e) {
             logger.error("Error occurred while saving transaction: {}", e.getMessage(), e);
+            model.addAttribute("error", "Failed to save transaction: " + e.getMessage());
+            model.addAttribute("transaction", transaction);
+            model.addAttribute("users", userService.getAllUsers());
+            // Load distinct categories for dropdown
+            List<String> categories = categoryKeywordService.getDistinctCategories();
+            model.addAttribute("categories", categories);
+            return "transaction/transaction-form";
         }
-        return "redirect:/transactions";
     }
 
     @GetMapping("/edit/{id}")
@@ -144,8 +260,28 @@ public class TransactionController {
             }
         }
 
-        model.addAttribute("message", String.format("Files uploaded successfully: %s. Errors in files: %s.",
-                String.join(", ", successFiles), String.join(", ", errorFiles)));
+        // Build success message
+        StringBuilder messageBuilder = new StringBuilder();
+        if (!successFiles.isEmpty()) {
+            messageBuilder.append("Files uploaded successfully: ").append(String.join(", ", successFiles));
+            if (!errorFiles.isEmpty()) {
+                messageBuilder.append(". ");
+            }
+        }
+        
+        // Only add error message if there are actual errors
+        if (!errorFiles.isEmpty()) {
+            messageBuilder.append("Errors in files: ").append(String.join(", ", errorFiles));
+        }
+        
+        String message = messageBuilder.toString();
+        if (!message.isEmpty()) {
+            model.addAttribute("message", message);
+            model.addAttribute("hasErrors", !errorFiles.isEmpty());
+            model.addAttribute("successFiles", successFiles);
+            model.addAttribute("errorFiles", errorFiles);
+        }
+        
         logger.info("Exiting handleFileUpload method");
         return "transaction/transaction-upload";
     }
@@ -154,6 +290,7 @@ public class TransactionController {
     public String recategorizeAllTransactions() {
         logger.info("Entering recategorizeAllTransactions method");
         try {
+
             List<Transaction> uncategorizedTransactions = transactionService.getUncategorizedTransactions();
             List<CategoryKeyword> categoryKeywords = categoryKeywordService.getAllCategories();
 
@@ -184,7 +321,7 @@ public class TransactionController {
             logger.error("Error occurred while fetching uncategorized transactions: {}", e.getMessage(), e);
         }
         logger.info("Exiting getUncategorizedTransactions method");
-        return "uncategorized_transactions";
+        return "transaction/transaction-list";
     }
 
     @GetMapping("/filter-form")
@@ -403,8 +540,7 @@ public class TransactionController {
                 "&userId=" +
                 (userId != null ? userId : "");
 
-        System.out.println("Redirect URL: " + redirectUrl); // Debugging output
-
+        logger.debug("Redirect URL: {}", redirectUrl);
         return redirectUrl;
     }
 

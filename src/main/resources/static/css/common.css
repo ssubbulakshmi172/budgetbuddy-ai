@@ -1,119 +1,41 @@
 /* Common Styles for BudgetBuddy Application */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap');
+/* Note: Base styles and variables are defined in budgetbuddy.css */
 
-/* Global Variables */
+/* Additional color variables for backward compatibility */
 :root {
-    /* Color Variables */
-    --primary-color: #4e73df;
-    --primary-rgb: 78, 115, 223;
-    --primary-dark: #2e59d9;
-    --primary-light: #e3e6f0;
-    
-    /* Status Colors */
-    --success-color: #1cc88a;
-    --info-color: #36b9cc;
-    --warning-color: #f6c23e;
-    --danger-color: #e74a3b;
-    
-    /* Grayscale */
-    --gray-100: #f8f9fc;
-    --gray-200: #f1f3f9;
-    --gray-300: #dddfeb;
-    --gray-400: #d1d3e2;
-    --gray-500: #b7b9cc;
-    --gray-600: #858796;
-    --gray-700: #6e707e;
-    --gray-800: #5a5c69;
-    --gray-900: #3a3b45;
+    --primary-color: var(--bb-primary);
+    --primary-rgb: 67, 97, 238;
+    --primary-dark: var(--bb-primary-dark);
+    --primary-light: var(--bb-primary-light);
+    --secondary-color: var(--bb-secondary);
+    --success-color: var(--bb-success);
+    --info-color: var(--bb-info);
+    --warning-color: var(--bb-warning);
+    --danger-color: var(--bb-danger);
+    --light-color: var(--bb-gray-100);
+    --dark-color: var(--bb-gray-800);
     
     /* Transitions */
-    --transition-base: all 0.2s ease-in-out;
+    --transition-base: var(--bb-transition-base);
     --transition-fade: opacity 0.15s linear;
     --transition-collapse: height 0.35s ease;
     
     /* Shadows */
-    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    --shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    --shadow-lg: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
+    --shadow-sm: var(--bb-shadow-sm);
+    --shadow: var(--bb-shadow-md);
+    --shadow-lg: var(--bb-shadow-lg);
     --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.075);
     
     /* Spacing */
     --spacer: 1rem;
-    --border-radius: 0.35rem;
-    --border-radius-lg: 0.5rem;
-    --border-radius-sm: 0.2rem;
-    --secondary-color: #858796;
-    --success-color: #1cc88a;
-    --info-color: #36b9cc;
-    --warning-color: #f6c23e;
-    --danger-color: #e74a3b;
-    --light-color: #f8f9fc;
-    --dark-color: #5a5c69;
-    --card-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    --card-hover-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
+    --border-radius: var(--bb-radius-md);
+    --border-radius-lg: var(--bb-radius-lg);
+    --border-radius-sm: var(--bb-radius-sm);
+    --card-shadow: var(--bb-shadow-md);
+    --card-hover-shadow: var(--bb-shadow-lg);
 }
 
-/* Base Styles */
-body {
-    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background-color: var(--light-color);
-    color: var(--dark-color);
-    line-height: 1.5;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-}
-
-/* Card Styles */
-.card {
-    border: none;
-    border-radius: 0.5rem;
-    box-shadow: var(--card-shadow);
-    transition: all 0.2s ease-in-out;
-    margin-bottom: 1.5rem;
-    background: white;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--card-hover-shadow);
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-/* Button Styles */
-.btn {
-    border-radius: 0.35rem;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    transition: all 0.2s ease-in-out;
-}
-
-.btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.btn-outline-primary {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.btn-outline-primary:hover {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-/* Navigation */
-.navbar {
-    box-shadow: var(--card-shadow);
-}
-
-/* Icons */
+/* Icons - Additional icon wrapper styles */
 .icon-wrapper {
     width: 4.5rem;
     height: 4.5rem;
@@ -122,79 +44,10 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background-color: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary-color);
+    background-color: var(--bb-primary-light);
+    color: var(--bb-primary);
     font-size: 1.75rem;
-    transition: var(--transition-base);
-}
-
-/* Colored icon backgrounds */
-.bg-primary-light { background-color: rgba(var(--primary-rgb), 0.1) !important; }
-.bg-success-light { background-color: rgba(28, 200, 138, 0.1) !important; }
-.bg-info-light { background-color: rgba(54, 185, 204, 0.1) !important; }
-.bg-warning-light { background-color: rgba(246, 194, 62, 0.1) !important; }
-.bg-danger-light { background-color: rgba(231, 74, 59, 0.1) !important; }
-
-/* Feature Cards */
-.feature-card {
-    border: none;
-    border-radius: var(--border-radius-lg);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    background: white;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-    border: 1px solid rgba(0, 0, 0, 0.03);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.03);
-}
-
-.feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: var(--primary-color);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-    z-index: -1;
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08), 0 10px 10px rgba(0, 0, 0, 0.04);
-    border-color: rgba(var(--primary-rgb), 0.1);
-}
-
-.feature-card:hover::before {
-    transform: scaleX(1);
-}
-
-.feature-card .card-body {
-    padding: 2rem;
-    position: relative;
-    z-index: 2;
-    background: white;
-}
-
-.feature-card .card-body::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(to bottom, 
-        rgba(255,255,255,0) 0%, 
-        rgba(var(--primary-rgb),0.03) 100%);
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.feature-card:hover .card-body::after {
-    opacity: 1;
+    transition: var(--bb-transition-base);
 }
 
 /* Report Cards */
@@ -208,8 +61,8 @@ body {
 }
 
 .report-card .card-header {
-    background-color: var(--gray-100);
-    border-bottom: 1px solid var(--gray-300);
+    background-color: var(--bb-gray-100);
+    border-bottom: 1px solid var(--bb-gray-300);
     font-weight: 600;
     padding: 1rem 1.5rem;
 }
@@ -228,14 +81,14 @@ body {
 }
 
 .report-json {
-    background-color: var(--gray-100);
+    background-color: var(--bb-gray-100);
     padding: 1rem;
     border-radius: var(--border-radius);
     max-height: 500px;
     overflow-y: auto;
     font-family: 'Courier New', monospace;
     font-size: 0.875rem;
-    border: 1px solid var(--gray-300);
+    border: 1px solid var(--bb-gray-300);
 }
 
 .report-json pre {
@@ -320,7 +173,7 @@ body {
 }
 
 .stats-card:hover .stat-number {
-    background: linear-gradient(135deg, var(--primary-dark), var(--info-color));
+    background: linear-gradient(135deg, var(--bb-primary-dark), var(--bb-info));
 }
 
 /* Section Headers */
@@ -332,11 +185,11 @@ body {
 .section-header h2 {
     font-weight: 700;
     margin-bottom: 1rem;
-    color: var(--gray-800);
+    color: var(--bb-gray-800);
 }
 
 .section-header p {
-    color: var(--gray-600);
+    color: var(--bb-gray-600);
     max-width: 600px;
     margin: 0 auto;
 }
@@ -353,29 +206,8 @@ body {
     margin-left: 0.5rem;
 }
 
-/* Utility Classes */
-.text-primary {
-    color: var(--primary-color) !important;
-}
-
-.text-success {
-    color: var(--success-color) !important;
-}
-
-.text-warning {
-    color: var(--warning-color) !important;
-}
-
-.text-danger {
-    color: var(--danger-color) !important;
-}
-
-/* Responsive Adjustments */
+/* Responsive Adjustments for Common Components */
 @media (max-width: 768px) {
-    .card {
-        margin-bottom: 1rem;
-    }
-    
     .icon-wrapper {
         width: 3.5rem;
         height: 3.5rem;

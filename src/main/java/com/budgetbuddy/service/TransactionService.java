@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class TransactionService {
@@ -46,8 +47,21 @@ public class TransactionService {
 
 
     public List<Transaction> getAllTransactions() {
-        logger.info("Fetching all transactions");
-        List<Transaction> transactions = transactionRepository.findAll();
+        return getAllTransactions(null);
+    }
+
+    public List<Transaction> getAllTransactions(String sort) {
+        logger.info("Fetching all transactions with sort: {}", sort);
+        List<Transaction> transactions;
+        
+        if (sort != null && sort.equals("date-asc")) {
+            transactions = transactionRepository.findAllByOrderByDateAsc();
+        } else if (sort != null && sort.equals("date-desc")) {
+            transactions = transactionRepository.findAllByOrderByDateDesc();
+        } else {
+            transactions = transactionRepository.findAll();
+        }
+        
         logger.info("Fetched {} transactions", transactions.size());
         return transactions;
     }
@@ -99,82 +113,127 @@ public class TransactionService {
                 rowIterator.next(); // Skip row
             }
 
-
-            // Process each row in the sheet
+            // First pass: Collect all transaction data (without predictions)
+            List<TransactionData> transactionDataList = new ArrayList<>();
+            
             while (rowIterator.hasNext()) {
                 Row row = rowIterator.next();
                 if (row.getCell(0) == null || row.getCell(0).getStringCellValue().trim().isEmpty()) {
-                    // Break the loop if the first column is empty or contains only whitespace
                     break;
                 }
                 try {
-                    // Read data from Excel row
-                    //String userName = row.getCell(0).getStringCellValue();
                     String dateString = row.getCell(0).getStringCellValue();
-                    LocalDate date = LocalDate.parse(dateString, dateFormatter); // Use custom date formatter);
+                    LocalDate date = LocalDate.parse(dateString, dateFormatter);
                     String narration = row.getCell(1).getStringCellValue();
                     String chequeRefNo = row.getCell(2).getStringCellValue();
                     Double withdrawalAmt = getNumericCellValue(row.getCell(4));
                     Double depositAmt = getNumericCellValue(row.getCell(5));
-                    Double closingAmt=getNumericCellValue(row.getCell(6));
+                    Double closingAmt = getNumericCellValue(row.getCell(6));
 
                     withdrawalAmt = (withdrawalAmt == null) ? 0.0 : withdrawalAmt;
-
                     depositAmt = (depositAmt == null) ? 0.0 : depositAmt;
-
                     closingAmt = (closingAmt == null) ? 0.0 : closingAmt;
-
                     Double amount = withdrawalAmt <= 0.0 ? depositAmt : (-1 * withdrawalAmt);
 
-                    // Find user by name
-                    Optional<User> userOpt = userRepository.findById(userId);
-                    if (userOpt.isEmpty()) {
-                        throw new IllegalArgumentException("User not found: "+userId );
-                    }
-
-                    User user = userOpt.get();
-
-
-
+                    transactionDataList.add(new TransactionData(
+                        date, narration, chequeRefNo, withdrawalAmt, 
+                        depositAmt, closingAmt, amount, row.getRowNum()
+                    ));
+                } catch (DateTimeParseException e) {
+                    logger.warn("Skipping row {} due to date parse error: {}", row.getRowNum(), e.getMessage());
+                }
+            }
+            
+            // Find user once
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty()) {
+                throw new IllegalArgumentException("User not found: " + userId);
+            }
+            User user = userOpt.get();
+            
+            // BATCH PREDICT: Get all narrations and predict in one call (MUCH FASTER!)
+            List<String> narrations = transactionDataList.stream()
+                .map(td -> td.narration)
+                .collect(Collectors.toList());
+            
+            logger.info("Batch predicting {} transactions (model loads once)...", narrations.size());
+            List<LocalModelInferenceService.PredictionResult> batchPredictions;
+            try {
+                batchPredictions = categorizationService.getBatchFullPredictions(narrations);
+                logger.info("✅ Batch prediction completed for {} transactions", batchPredictions.size());
+            } catch (Exception ex) {
+                logger.error("Batch prediction failed, falling back to individual predictions: {}", ex.getMessage());
+                batchPredictions = new ArrayList<>();
+                for (int i = 0; i < narrations.size(); i++) {
+                    batchPredictions.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0));
+                }
+            }
+            
+            // Second pass: Create transactions with predictions
+            for (int i = 0; i < transactionDataList.size(); i++) {
+                TransactionData td = transactionDataList.get(i);
+                LocalModelInferenceService.PredictionResult prediction = 
+                    (i < batchPredictions.size()) ? batchPredictions.get(i) : 
+                    new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0);
+                
+                try {
+                    // Match category keywords
                     String categoryName = categoryKeywords.stream()
-                            .filter(keyword -> narration.matches("(?i).*\\b" + Pattern.quote(keyword.getKeyword()) + "\\b.*"))
-                            .map(CategoryKeyword::getCategoryName)
-                            .findFirst()
-                            .orElse(null);
-
-                    String aiPredictedCategory;
-                    try {
-                        aiPredictedCategory = categorizationService.getPredictedCategory(narration);
-                    } catch (Exception ex) {
-                        aiPredictedCategory = "Uncategorized";
-                        logger.error("AI prediction failed for narration: {} -> {}", narration, ex.getMessage());
-                    }
+                        .filter(keyword -> td.narration.matches("(?i).*\\b" + Pattern.quote(keyword.getKeyword()) + "\\b.*"))
+                        .map(CategoryKeyword::getCategoryName)
+                        .findFirst()
+                        .orElse(null);
 
                     // Create and save transaction
                     Transaction transaction = new Transaction();
-                    transaction.setDate(date);
-                    transaction.setNarration(narration);
-                    transaction.setChequeRefNo(chequeRefNo);
-                    transaction.setWithdrawalAmt(withdrawalAmt);
-                    transaction.setDepositAmt(depositAmt);
-                    transaction.setClosingBalance(closingAmt);
+                    transaction.setDate(td.date);
+                    transaction.setNarration(td.narration);
+                    transaction.setChequeRefNo(td.chequeRefNo);
+                    transaction.setWithdrawalAmt(td.withdrawalAmt);
+                    transaction.setDepositAmt(td.depositAmt);
+                    transaction.setClosingBalance(td.closingAmt);
                     transaction.setCategoryName(categoryName);
-                    transaction.setPredictedCategory(aiPredictedCategory);
+                    transaction.setPredictedCategory(prediction.getPredictedCategory());
+                    transaction.setPredictedTransactionType(prediction.getTransactionType());
+                    transaction.setPredictedIntent(prediction.getIntent());
+                    transaction.setPredictionConfidence(prediction.getConfidence());
                     transaction.setUser(user);
-                    transaction.setAmount(amount);
+                    transaction.setAmount(td.amount);
 
                     transactionRepository.save(transaction);
 
-                } catch (DateTimeParseException e) {
-                    e.printStackTrace();
-                    throw new IllegalArgumentException("Invalid date format in row " + row.getRowNum()+"====>"+  row.getCell(0).getStringCellValue()+ e.getMessage());
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    throw new IllegalArgumentException("Error processing row " + row.getRowNum()+"====>"+ row.getCell(0).getStringCellValue()+e.getMessage());
+                    logger.error("Error processing transaction data at index {}: {}", i, e.getMessage());
+                    throw new IllegalArgumentException("Error processing row " + td.rowNumber + ": " + e.getMessage());
                 }
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Error reading the file", e);
+        }
+    }
+    
+    // Helper class to hold transaction data before prediction
+    private static class TransactionData {
+        LocalDate date;
+        String narration;
+        String chequeRefNo;
+        Double withdrawalAmt;
+        Double depositAmt;
+        Double closingAmt;
+        Double amount;
+        int rowNumber;
+        
+        TransactionData(LocalDate date, String narration, String chequeRefNo, 
+                        Double withdrawalAmt, Double depositAmt, Double closingAmt, 
+                        Double amount, int rowNumber) {
+            this.date = date;
+            this.narration = narration;
+            this.chequeRefNo = chequeRefNo;
+            this.withdrawalAmt = withdrawalAmt;
+            this.depositAmt = depositAmt;
+            this.closingAmt = closingAmt;
+            this.amount = amount;
+            this.rowNumber = rowNumber;
         }
     }
 

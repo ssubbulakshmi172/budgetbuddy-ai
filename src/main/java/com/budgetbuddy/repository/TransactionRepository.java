@@ -34,6 +34,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
 
     List<Transaction> findByCategoryNameIsNull();
+    
+    // Sort methods for date
+    List<Transaction> findAllByOrderByDateAsc();
+    List<Transaction> findAllByOrderByDateDesc();
 
     @Query("SELECT t FROM Transaction t WHERE " +
             "(:month = -1 OR FUNCTION('MONTH', t.date) = :month) " +  // Month filter

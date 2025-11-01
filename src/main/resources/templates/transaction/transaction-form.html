@@ -4,26 +4,42 @@
       layout:decorate="~{layouts/master}">
 <head>
     <title layout:title-pattern="$CONTENT_TITLE - BudgetBuddy" th:text="${transaction.id != null} ? 'Edit Transaction' : 'Create Transaction'">Transaction Form - BudgetBuddy</title>
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <style>
+        .form-control:focus, .form-select:focus {
+            border-color: #66B2FF;
+            box-shadow: 0 0 0 0.2rem rgba(102, 178, 255, 0.25);
+        }
+    </style>
 </head>
 <body>
 <div layout:fragment="content">
     <div class="container">
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <div>
-                    <h1 th:text="${transaction.id != null} ? 'Edit Transaction' : 'Create New Transaction'">Transaction Form</h1>
-                    <p class="subtitle" th:if="${transaction.id != null}">Update transaction details below</p>
-                    <p class="subtitle" th:unless="${transaction.id != null}">Fill in the details to create a new transaction</p>
+        <div class="page-header text-center mb-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div class="flex-grow-1 text-start">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <span class="welcome-text" th:text="${transaction.id != null} ? 'Edit ' : 'Create '"></span>
+                        <span class="brand-text">Transaction</span>
+                    </h1>
+                    <p class="lead text-muted" th:if="${transaction.id != null}">Update transaction details below</p>
+                    <p class="lead text-muted" th:unless="${transaction.id != null}">Fill in the details to create a new transaction</p>
                 </div>
-                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
-                </a>
+                <div>
+                    <a th:href="@{/transactions}" class="btn btn-outline-secondary btn-lg shadow-sm">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Transactions
+                    </a>
+                </div>
             </div>
         </div>
 
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <i class="bi bi-cash-stack text-primary me-2"></i>
+                        <span class="fw-bold" th:text="${transaction.id != null} ? 'Edit Transaction Details' : 'Transaction Information'"></span>
+                    </div>
                     <div class="card-body">
                         <form th:action="@{/transactions}" th:object="${transaction}" method="post">
                             <input type="hidden" th:field="*{id}" />
@@ -38,14 +54,15 @@
                                            required />
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="user" class="form-label">User</label>
-                                    <select id="user" 
-                                            th:field="*{user}" 
+                                    <label for="userId" class="form-label">User</label>
+                                    <select id="userId" 
+                                            name="user"
                                             class="form-select" 
                                             required>
                                         <option value="" disabled selected>Select User</option>
                                         <option th:each="user : ${users}" 
-                                                th:value="${user.id}" 
+                                                th:value="${user.id}"
+                                                th:selected="${transaction.user != null and transaction.user.id == user.id}"
                                                 th:text="${user.id} + ' - ' + ${user.name}">
                                         </option>
                                     </select>
@@ -109,6 +126,94 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Saved Transaction Display -->
+            <div class="row justify-content-center mt-4" th:if="${savedTransaction != null}">
+                <div class="col-lg-8">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert" th:if="${success}">
+                        <strong><i class="bi bi-check-circle me-2"></i>Success!</strong> 
+                        <span th:text="${success}"></span>
+                        <span class="badge bg-info ms-2" th:if="${saveTime != null}">
+                            Saved in <span th:text="${saveTime}">0</span>ms
+                        </span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    
+                    <div class="card border-0 shadow-sm mt-3">
+                        <div class="card-header bg-success bg-opacity-10 border-bottom">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            <span class="fw-bold">Saved Transaction</span>
+                            <span class="badge bg-info ms-2" th:if="${saveTime != null}">
+                                <i class="bi bi-stopwatch me-1"></i><span th:text="${saveTime}">0</span>ms
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="text-muted small">Date:</label>
+                                    <p class="mb-0 fw-medium" th:text="${#temporals.format(savedTransaction.date, 'dd MMM yyyy')}">Date</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="text-muted small">User:</label>
+                                    <p class="mb-0 fw-medium" th:text="${savedTransaction.user != null ? savedTransaction.user.name : 'N/A'}">User</p>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="text-muted small">Description / Narration:</label>
+                                    <p class="mb-0 fw-medium" th:text="${savedTransaction.narration}">Description</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="text-muted small">Amount:</label>
+                                    <p class="mb-0 fw-medium" 
+                                       th:class="${savedTransaction.amount < 0 ? 'text-danger' : 'text-success'}"
+                                       th:text="${'₹' + #numbers.formatDecimal(savedTransaction.amount, 1, 2)}">Amount</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="text-muted small">Category:</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-primary" 
+                                              th:if="${savedTransaction.categoryName != null and !savedTransaction.categoryName.isEmpty()}"
+                                              th:text="${savedTransaction.categoryName}">Category</span>
+                                        <span class="badge bg-secondary" th:if="${savedTransaction.categoryName == null or savedTransaction.categoryName.isEmpty()}">Not Set</span>
+                                    </p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="text-muted small">AI Predicted Category:</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-info" 
+                                              th:if="${savedTransaction.predictedCategory != null and !savedTransaction.predictedCategory.isEmpty()}"
+                                              th:text="${savedTransaction.predictedCategory}">Predicted</span>
+                                        <span class="badge bg-secondary" th:if="${savedTransaction.predictedCategory == null or savedTransaction.predictedCategory.isEmpty()}">N/A</span>
+                                        <small class="text-muted d-block mt-1" 
+                                               th:if="${savedTransaction.predictionConfidence != null}">
+                                            Confidence: <span th:text="${#numbers.formatDecimal(savedTransaction.predictionConfidence * 100, 1, 1)}">0</span>%
+                                        </small>
+                                    </p>
+                                </div>
+                                <div class="col-md-6 mb-3" th:if="${savedTransaction.predictedTransactionType != null}">
+                                    <label class="text-muted small">Transaction Type:</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-warning text-dark" th:text="${savedTransaction.predictedTransactionType}">Type</span>
+                                    </p>
+                                </div>
+                                <div class="col-md-6 mb-3" th:if="${savedTransaction.predictedIntent != null}">
+                                    <label class="text-muted small">Intent:</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-secondary" th:text="${savedTransaction.predictedIntent}">Intent</span>
+                                    </p>
+                                </div>
+                                <div class="col-12 mt-3">
+                                    <a th:href="@{/transactions}" class="btn btn-outline-primary btn-sm me-2">
+                                        <i class="bi bi-list-ul me-1"></i>View All Transactions
+                                    </a>
+                                    <a th:href="@{/transactions/new}" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Another Transaction
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -3,7 +3,7 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/master}">
 <head>
-    <title>Add Category - BudgetBuddy</title>
+    <title>Edit Category - BudgetBuddy</title>
     <link rel="stylesheet" th:href="@{/css/home.css}">
     <style>
         .table-row-hover:hover {
@@ -14,6 +14,10 @@
             border-color: #66B2FF;
             box-shadow: 0 0 0 0.2rem rgba(102, 178, 255, 0.25);
         }
+        .alert {
+            border-radius: 0.5rem;
+            border-left: 4px solid;
+        }
     </style>
 </head>
 <body>
@@ -23,9 +27,9 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
                 <div class="flex-grow-1 text-start">
                     <h1 class="display-4 fw-bold mb-3">
-                        <span class="welcome-text">Add Category </span><span class="brand-text">Keyword</span>
+                        <span class="welcome-text">Edit Category </span><span class="brand-text">Keyword</span>
                     </h1>
-                    <p class="lead text-muted">Create a new category keyword to help categorize transactions</p>
+                    <p class="lead text-muted">Update category keyword information</p>
                 </div>
                 <div>
                     <a th:href="@{/categories}" class="btn btn-outline-secondary btn-lg shadow-sm">
@@ -35,14 +39,24 @@
             </div>
         </div>
 
+        <!-- Error Messages -->
+        <div th:if="${param.error != null}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span th:if="${param.error[0] == 'duplicate'}">This keyword already exists. Please choose a different keyword.</span>
+            <span th:if="${param.error[0] == 'notfound'}">Category keyword not found.</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="row">
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <i class="bi bi-plus-circle text-primary me-2"></i><span class="fw-bold">Category Information</span>
+                        <i class="bi bi-pencil-square text-primary me-2"></i><span class="fw-bold">Category Information</span>
                     </div>
                     <div class="card-body">
-                        <form th:action="@{/categories/add}" th:object="${categoryKeyword}" method="post">
+                        <form th:action="@{/categories/edit/{id}(id=${categoryKeyword.id})}" th:object="${categoryKeyword}" method="post">
+                            <input type="hidden" th:field="*{id}" />
+                            
                             <div class="mb-3">
                                 <label for="categoryName" class="form-label">Category Name</label>
                                 <input type="text" 
@@ -83,7 +97,7 @@
                                     <i class="bi bi-x-circle me-2"></i>Cancel
                                 </a>
                                 <button type="submit" class="btn btn-primary shadow-sm">
-                                    <i class="bi bi-check-circle me-2"></i>Add Category
+                                    <i class="bi bi-check-circle me-2"></i>Update Category
                                 </button>
                             </div>
                         </form>
@@ -94,78 +108,28 @@
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <i class="bi bi-info-circle text-primary me-2"></i><span class="fw-bold">Tips</span>
+                        <i class="bi bi-info-circle text-primary me-2"></i><span class="fw-bold">Information</span>
                     </div>
                     <div class="card-body">
                         <ul class="list-unstyled mb-0">
                             <li class="mb-2">
-                                <i class="bi bi-check-circle text-success me-2"></i>
-                                Use specific, commonly appearing keywords
+                                <i class="bi bi-info-circle text-primary me-2"></i>
+                                <strong>ID:</strong> <span th:text="${categoryKeyword.id}">1</span>
                             </li>
                             <li class="mb-2">
                                 <i class="bi bi-check-circle text-success me-2"></i>
-                                Include variations (e.g., "uber", "taxi", "cab")
+                                Changes will update the keyword immediately
                             </li>
                             <li class="mb-2">
                                 <i class="bi bi-check-circle text-success me-2"></i>
-                                Categories help AI categorize transactions automatically
+                                Taxonomy keywords are used by AI model for categorization
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                                Changing keyword may affect categorization accuracy
                             </li>
                         </ul>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Uncategorized Transactions Section -->
-        <div class="card border-0 shadow-sm mt-4" th:if="${uncategorizedTransactions != null and !#lists.isEmpty(uncategorizedTransactions)}">
-            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-question-circle text-primary me-2"></i><span class="fw-bold">Uncategorized Transactions</span>
-                </div>
-                <a th:href="@{/transactions/recategorize-all}" class="btn btn-sm btn-primary shadow-sm">
-                    <i class="bi bi-arrow-repeat me-1"></i>Recategorize All
-                </a>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="fw-semibold">ID</th>
-                                <th class="fw-semibold">Date</th>
-                                <th class="fw-semibold">Description</th>
-                                <th class="fw-semibold">User</th>
-                                <th class="text-end fw-semibold">Withdrawal</th>
-                                <th class="text-end fw-semibold">Deposit</th>
-                                <th class="fw-semibold">Category</th>
-                                <th class="text-center fw-semibold">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="transaction : ${uncategorizedTransactions}" class="table-row-hover">
-                                <td th:text="${transaction.id}">1</td>
-                                <td th:text="${#temporals.format(transaction.date, 'MMM d, yyyy')}">Jan 1, 2023</td>
-                                <td>
-                                    <div class="adjustable-description" th:text="${transaction.narration}">Description</div>
-                                </td>
-                                <td th:text="${transaction.user.name}">User</td>
-                                <td class="text-end" th:text="${transaction.withdrawalAmt != null ? #numbers.formatDecimal(transaction.withdrawalAmt, 1, 2) : '-'}">-</td>
-                                <td class="text-end" th:text="${transaction.depositAmt != null ? #numbers.formatDecimal(transaction.depositAmt, 1, 2) : '-'}">-</td>
-                                <td>
-                                    <span class="badge bg-secondary shadow-sm px-2 py-1" 
-                                          th:text="${transaction.categoryName != null ? transaction.categoryName : 'Uncategorized'}">
-                                        Uncategorized
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <a th:href="@{/transactions/edit/{id}(id=${transaction.id})}" 
-                                       class="btn btn-sm btn-outline-primary shadow-sm">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
@@ -173,3 +137,4 @@
 </div>
 </body>
 </html>
+

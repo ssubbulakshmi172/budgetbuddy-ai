@@ -16,6 +16,9 @@ public class CategoryKeyword {
     @Column(nullable = false)
     private String keyword;
 
+    @Column(name = "categories_for", nullable = true)
+    private String categoriesFor; // Field for AI categorisation taxonomy
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -39,5 +42,13 @@ public class CategoryKeyword {
 
     public void setKeyword(String keyword) {
         this.keyword = keyword;
+    }
+
+    public String getCategoriesFor() {
+        return categoriesFor;
+    }
+
+    public void setCategoriesFor(String categoriesFor) {
+        this.categoriesFor = categoriesFor;
     }
 }

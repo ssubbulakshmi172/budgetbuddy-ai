@@ -4,27 +4,38 @@
       layout:decorate="~{layouts/master}">
 <head>
     <title>Upload Transactions - BudgetBuddy</title>
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <style>
+        .form-control:focus, .form-select:focus {
+            border-color: #66B2FF;
+            box-shadow: 0 0 0 0.2rem rgba(102, 178, 255, 0.25);
+        }
+    </style>
 </head>
 <body>
 <div layout:fragment="content">
     <div class="container">
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <div>
-                    <h1>Upload Transaction Files</h1>
-                    <p class="subtitle">Import transactions from CSV or Excel files</p>
+        <div class="page-header text-center mb-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div class="flex-grow-1 text-start">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <span class="welcome-text">Upload Transaction </span><span class="brand-text">Files</span>
+                    </h1>
+                    <p class="lead text-muted">Import transactions from CSV or Excel files</p>
                 </div>
-                <a th:href="@{/transactions}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
-                </a>
+                <div>
+                    <a th:href="@{/transactions}" class="btn btn-outline-secondary btn-lg shadow-sm">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Transactions
+                    </a>
+                </div>
             </div>
         </div>
 
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-cloud-upload me-2"></i>Upload Files
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <i class="bi bi-cloud-upload text-primary me-2"></i><span class="fw-bold">Upload Files</span>
                     </div>
                     <div class="card-body">
                         <form th:action="@{/transactions/transaction-upload}" method="POST" enctype="multipart/form-data">
@@ -71,13 +82,41 @@
                     </div>
                 </div>
 
-                <div th:if="${message}" class="card mt-4">
-                    <div class="card-body">
-                        <div class="alert" 
-                             th:classappend="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')} ? 'alert-success' : 'alert-info'">
-                            <i class="bi bi-info-circle me-2" th:if="${!#strings.contains(message, 'success') and !#strings.contains(message, 'Success')}"></i>
-                            <i class="bi bi-check-circle me-2" th:if="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')}"></i>
-                            <span th:text="${message}">Message</span>
+                <!-- Success/Error Messages -->
+                <div th:if="${message}" class="mt-4">
+                    <!-- Success Message -->
+                    <div th:if="${successFiles != null and !successFiles.isEmpty()}" class="alert alert-success alert-dismissible fade show" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="bi bi-check-circle-fill me-2"></i>Upload Successful!
+                        </h5>
+                        <p class="mb-2"><strong>Files uploaded successfully:</strong></p>
+                        <ul class="mb-0">
+                            <li th:each="file : ${successFiles}" th:text="${file}">filename.xls</li>
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div th:if="${hasErrors != null and hasErrors}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Upload Errors
+                        </h5>
+                        <p class="mb-2"><strong>Errors occurred while processing:</strong></p>
+                        <ul class="mb-0">
+                            <li th:each="file : ${errorFiles}" th:text="${file}">filename.xls</li>
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    
+                    <!-- Fallback message (if format is old) -->
+                    <div th:if="${successFiles == null and errorFiles == null}" class="card">
+                        <div class="card-body">
+                            <div class="alert" 
+                                 th:classappend="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')} ? 'alert-success' : 'alert-info'">
+                                <i class="bi bi-info-circle me-2" th:if="${!#strings.contains(message, 'success') and !#strings.contains(message, 'Success')}"></i>
+                                <i class="bi bi-check-circle me-2" th:if="${#strings.contains(message, 'success') or #strings.contains(message, 'Success')}"></i>
+                                <span th:text="${message}">Message</span>
+                            </div>
                         </div>
                     </div>
                 </div>

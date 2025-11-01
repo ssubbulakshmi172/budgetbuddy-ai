@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" th:href="@{/css/budgetbuddy.css}">
-    <link rel="stylesheet" th:href="@{/style.css}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/table-adjustable.css}">
@@ -47,7 +46,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" th:href="@{/transactions/dashboard}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'dashboard')} ? 'active'">
+                                <a class="nav-link" th:href="@{/dashboard}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'dashboard')} ? 'active'">
                                     <i class="bi bi-speedometer2 me-1"></i>Dashboard
                                 </a>
                             </li>

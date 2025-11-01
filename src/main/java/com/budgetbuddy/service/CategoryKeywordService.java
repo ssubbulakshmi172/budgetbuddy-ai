@@ -36,4 +36,8 @@ public class CategoryKeywordService {
         return categoryKeywordRepository.findDistinctCategoryNames();
     }
 
+    public CategoryKeyword getCategoryKeywordById(Long id) {
+        return categoryKeywordRepository.findById(id).orElse(null);
+    }
+
 }

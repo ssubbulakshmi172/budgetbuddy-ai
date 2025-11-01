@@ -1,30 +1,48 @@
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/master}">
 
 <head>
     <title th:text="${user.id != null} ? 'Edit User - BudgetBuddy' : 'Create User - BudgetBuddy'">User Form - BudgetBuddy</title>
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <style>
+        .form-control:focus, .form-select:focus {
+            border-color: #66B2FF;
+            box-shadow: 0 0 0 0.2rem rgba(102, 178, 255, 0.25);
+        }
+    </style>
 </head>
 
 <body>
 <div layout:fragment="content">
-    <div class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1" th:text="${user.id != null} ? 'Edit User' : 'Create New User'">User Form</h1>
-                        <p class="text-muted mb-0" th:if="${user.id != null}">Update user details below</p>
-                        <p class="text-muted mb-0" th:unless="${user.id != null}">Fill in the details to create a new user</p>
-                    </div>
-                    <a th:href="@{/users}" class="btn btn-outline-secondary">
+    <div class="container">
+        <div class="page-header text-center mb-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div class="flex-grow-1 text-start">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <span class="welcome-text" th:text="${user.id != null} ? 'Edit ' : 'Create '"></span>
+                        <span class="brand-text">User</span>
+                    </h1>
+                    <p class="lead text-muted" th:if="${user.id != null}">Update user details below</p>
+                    <p class="lead text-muted" th:unless="${user.id != null}">Fill in the details to create a new user</p>
+                </div>
+                <div>
+                    <a th:href="@{/users}" class="btn btn-outline-secondary btn-lg shadow-sm">
                         <i class="bi bi-arrow-left me-2"></i>Back to Users
                     </a>
                 </div>
+            </div>
+        </div>
 
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
                 <!-- Form Card -->
                 <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <i class="bi bi-person text-primary me-2"></i>
+                        <span class="fw-bold" th:text="${user.id != null} ? 'Edit User Details' : 'User Information'"></span>
+                    </div>
                     <div class="card-body p-4">
                         <form th:action="@{/users}" th:object="${user}" method="post" class="needs-validation" novalidate>
                             <input type="hidden" th:field="*{id}" />

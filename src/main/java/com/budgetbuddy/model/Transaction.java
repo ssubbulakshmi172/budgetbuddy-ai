@@ -33,6 +33,15 @@ public class Transaction {
     @Column(name = "predicted_category")
     private String predictedCategory;
 
+    @Column(name = "predicted_transaction_type")
+    private String predictedTransactionType; // P2C, P2P, P2Business
+
+    @Column(name = "predicted_intent")
+    private String predictedIntent; // purchase, transfer, refund, subscription, bill_payment, other
+
+    @Column(name = "prediction_confidence")
+    private Double predictionConfidence; // 0.0 to 1.0
+
     @Column(nullable = true)
     private String categoryName; // New column for the matched category
 
@@ -128,6 +137,30 @@ public class Transaction {
 
     public void setPredictedCategory(String predictedCategory) {
         this.predictedCategory = predictedCategory;
+    }
+
+    public String getPredictedTransactionType() {
+        return predictedTransactionType;
+    }
+
+    public void setPredictedTransactionType(String predictedTransactionType) {
+        this.predictedTransactionType = predictedTransactionType;
+    }
+
+    public String getPredictedIntent() {
+        return predictedIntent;
+    }
+
+    public void setPredictedIntent(String predictedIntent) {
+        this.predictedIntent = predictedIntent;
+    }
+
+    public Double getPredictionConfidence() {
+        return predictionConfidence;
+    }
+
+    public void setPredictionConfidence(Double predictionConfidence) {
+        this.predictionConfidence = predictionConfidence;
     }
 
     // Override toString method for logging or debugging

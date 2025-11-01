@@ -5,19 +5,32 @@
 
 <head>
     <title>User Management - BudgetBuddy</title>
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <style>
+        .table-row-hover:hover {
+            background-color: rgba(102, 178, 255, 0.05);
+            transition: background-color 0.2s ease;
+        }
+    </style>
 </head>
 
 <body>
 <div layout:fragment="content">
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h3 mb-1">User Management</h1>
-                <p class="text-muted mb-0">Manage system users and their permissions</p>
+    <div class="container">
+        <div class="page-header text-center mb-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div class="flex-grow-1 text-start">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <span class="welcome-text">User </span><span class="brand-text">Management</span>
+                    </h1>
+                    <p class="lead text-muted">Manage system users and their permissions</p>
+                </div>
+                <div>
+                    <a th:href="@{/users/new}" class="btn btn-primary btn-lg shadow-sm">
+                        <i class="bi bi-plus-lg me-2"></i>Add New User
+                    </a>
+                </div>
             </div>
-            <a th:href="@{/users/new}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-2"></i>Add New User
-            </a>
         </div>
 
         <div class="card border-0 shadow-sm">
@@ -33,7 +46,7 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="user : ${users}">
+                        <tr th:each="user : ${users}" class="table-row-hover">
                             <td class="ps-4" th:text="${user.id}">1</td>
                             <td>
                                 <div class="d-flex align-items-center">

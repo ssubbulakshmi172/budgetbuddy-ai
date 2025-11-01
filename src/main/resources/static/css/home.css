@@ -179,6 +179,11 @@ body {
     box-shadow: 0 4px 20px rgba(118, 75, 162, 0.4);
 }
 
+.feature-card-add .feature-card-icon {
+    background: linear-gradient(135deg, #667eea 0%, #4361ee 100%);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
 /* Enhanced card text */
 .feature-card h3 {
     color: #333333;
@@ -461,5 +466,174 @@ body {
     padding: 0.35rem 0.65rem;
     font-weight: 600;
     letter-spacing: 0.3px;
+}
+
+/* Project Summary Card */
+.project-summary-card {
+    background: linear-gradient(135deg, rgba(102, 178, 255, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+    border-left: 4px solid var(--bb-primary);
+    transition: all 0.3s ease;
+}
+
+.project-summary-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.project-summary-icon {
+    font-size: 5rem;
+    color: var(--bb-primary);
+    opacity: 0.15;
+    margin-bottom: 1rem;
+}
+
+.project-summary-card h2 {
+    color: var(--bb-gray-900);
+    margin-bottom: 1rem;
+}
+
+.project-summary-card p {
+    color: var(--bb-gray-700);
+    line-height: 1.7;
+}
+
+.project-summary-card .bi-check-circle-fill {
+    flex-shrink: 0;
+}
+
+/* Privacy Highlight */
+.privacy-highlight {
+    margin-top: 1.5rem;
+}
+
+.privacy-highlight h3 {
+    font-size: 1.1rem;
+}
+
+/* Quick Action Cards - Sidebar Style */
+.quick-action-card {
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.quick-action-card:hover {
+    transform: translateX(5px);
+    border-left-color: var(--bb-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card-icon-small {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.quick-action-card.feature-card-add .feature-card-icon-small {
+    background: linear-gradient(135deg, #667eea 0%, #4361ee 100%);
+}
+
+.quick-action-card.feature-card-upload .feature-card-icon-small {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.quick-action-card.feature-card-dashboard .feature-card-icon-small {
+    background: linear-gradient(135deg, #e74a3b 0%, #667eea 100%);
+}
+
+.quick-action-card.feature-card-categories .feature-card-icon-small {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Privacy Notice - Compact */
+.privacy-notice {
+    transition: all 0.3s ease;
+}
+
+.privacy-notice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(28, 200, 138, 0.2);
+    background: linear-gradient(135deg, rgba(28, 200, 138, 0.15) 0%, rgba(28, 200, 138, 0.08) 100%) !important;
+}
+
+/* Enhanced Quick Action Cards */
+.quick-action-card {
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+}
+
+.quick-action-card:hover {
+    transform: translateX(8px) scale(1.02);
+    border-left-color: var(--bb-primary);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.quick-action-card:active {
+    transform: translateX(4px) scale(0.98);
+}
+
+.quick-action-card h3 {
+    transition: color 0.2s ease;
+}
+
+.quick-action-card:hover h3 {
+    color: var(--bb-primary);
+}
+
+/* Improved readability */
+.project-summary-card p {
+    color: var(--bb-gray-700);
+    line-height: 1.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991px) {
+    .privacy-highlight .d-flex {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .privacy-highlight .bi-shield-lock-fill {
+        margin: 0 auto 1rem;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-2px) scale(1.02);
+    }
+    
+    .quick-action-card {
+        margin-bottom: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .project-summary-card .card-body {
+        padding: 1.5rem !important;
+    }
+    
+    .privacy-badge {
+        padding: 1rem !important;
+    }
+    
+    .privacy-badge h3 {
+        font-size: 1rem;
+    }
+    
+    .quick-action-card .card-body {
+        padding: 1rem !important;
+    }
+    
+    .feature-card-icon-small {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+    }
 }
 

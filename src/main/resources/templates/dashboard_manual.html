@@ -4,7 +4,7 @@
       layout:decorate="~{layouts/master}">
 
 <head>
-    <title>Dashboard - BudgetBuddy</title>
+    <title>Dashboard (Manual Categories) - BudgetBuddy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .dashboard-hero {
@@ -195,6 +195,17 @@
             </div>
         </div>
 
+        <!-- Info Banner for Manual Categories -->
+        <div class="alert alert-info border-0 shadow-sm mb-4" role="alert" th:if="${usingManualCategories}">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Manual Categories Dashboard</strong> - This view shows spending based on manually assigned categories (<code>categoryName</code> field). 
+                    Visit <a th:href="@{/dashboard}" class="alert-link">/dashboard</a> for AI-predicted categories view.
+                </div>
+            </div>
+        </div>
+        
         <!-- Dashboard Hero Section -->
         <div class="dashboard-hero">
             
@@ -470,9 +481,9 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
                     <div>
                         <h4 class="fw-bold mb-1">
-                            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Category-wise Month Comparison
+                            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Category-wise Month Comparison (Manual Categories)
                         </h4>
-                        <p class="text-muted small mb-0">6-Month Spending Trends by Category</p>
+                        <p class="text-muted small mb-0">6-Month Spending Trends by Manually Assigned Categories</p>
                     </div>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-sm btn-outline-primary" id="viewBar" onclick="switchChartView('bar')">
