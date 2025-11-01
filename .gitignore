@@ -65,6 +65,7 @@ mybudget-ai/reports/*_*.json
 *.log.*
 *.gz
 budgetbuddy.log*
+ffmpeg_recording.log
 
 # OS Files
 .DS_Store
@@ -93,3 +94,11 @@ application-local.properties
 *.db
 *.sqlite
 *.sqlite3
+
+# Demo Recordings & Video Files
+*.mov
+*.mp4
+*.avi
+demo_recording_*.mov
+*_recording_*.mov
+ffmpeg_recording.log
