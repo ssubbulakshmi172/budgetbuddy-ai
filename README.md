@@ -156,31 +156,75 @@ python create_synthetic_dataset.py --num-samples 7000
 python3 train_distilbert.py
 ```
 
-### 3. Train or Obtain the Model
+### 3. Setup Python Virtual Environment
+
+```bash
+cd mybudget-ai
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 4. Train or Obtain the Model
 
 **Note**: The pre-trained model file (`model.safetensors`, 255 MB) is excluded from the repository due to GitHub's file size limit.
 
 **Option A: Train the Model** (Recommended - ~10-30 minutes):
 ```bash
 cd mybudget-ai
+source venv/bin/activate  # Activate virtual environment
 python3 train_distilbert.py
 ```
+
+**Training Configuration** (`train_distilbert.py`):
+- `USE_SYNTHETIC_DATA = True` - Merges real + synthetic datasets (~10,000 samples)
+- `USE_PREPROCESSING = True` - Applies UPI text cleaning
+- `USE_6_CATEGORIES = False` - Uses 10-category taxonomy (set True for 6 categories)
+
+**What Training Does:**
+1. Loads `transactions_distilbert.csv` (real data: 3,000 rows)
+2. Loads `transactions_synthetic.csv` (synthetic data: 7,000 rows)
+3. Merges datasets with column normalization
+4. Applies UPI preprocessing (removes IDs, bank tags, etc.)
+5. Trains DistilBERT multi-task model
+6. Generates evaluation reports
 
 **Option B: Download Pre-trained Model** (if available):
 See `mybudget-ai/models/distilbert_multitask_latest/MODEL_DOWNLOAD.md` for instructions.
 
-### 4. Verify Inference
+### 5. Verify Inference
 
 The Spring Boot application uses local inference by default. No Flask server needed.
 For testing local inference directly:
 ```bash
 cd mybudget-ai
-python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
+source venv/bin/activate
+python3 inference_local.py "UPI-CHILD CARE PHARMACY-VYAPAR.171813425600@HDFCBANK-HDFC.COMERUPI-112425210473-MEDICAL"
+```
+
+**Example Output:**
+```json
+{
+  "model_type": "DistilBERT",
+  "transaction_type": "P2C",
+  "predicted_category": "Healthcare",
+  "intent": "purchase",
+  "confidence": {
+    "category": 0.85,
+    "transaction_type": 0.92,
+    "intent": 0.88
+  }
+}
 ```
 
 The Spring Boot application will automatically use local inference when started.
 
-### 5. Start Spring Boot Application
+**Note:** Update `application.properties` to use venv Python:
+```properties
+python.command=mybudget-ai/venv/bin/python3
+```
+
+### 6. Start Spring Boot Application
 
 ```bash
 # From project root
@@ -189,7 +233,7 @@ The Spring Boot application will automatically use local inference when started.
 
 Application will start on `http://localhost:8080`
 
-### 6. Test the System
+### 7. Test the System
 
 1. **Import Transactions:**
    - Navigate to `http://localhost:8080/transactions/upload`
@@ -223,9 +267,16 @@ Application will start on `http://localhost:8080`
 ### Latest Evaluation Results
 
 **Dataset:**
-- Training samples: 3,920
-- Test samples: 980
-- Categories: 10
+- **Real Data:** 3,000 samples (`transactions_distilbert.csv`)
+- **Synthetic Data:** 7,000 samples (`transactions_synthetic.csv`)
+- **Total Training Samples:** ~10,000 (with preprocessing)
+- **Test samples:** ~2,000 (20% split)
+- **Categories:** 10
+
+**New Features (v1.2.0):**
+- ✅ **Mixed Real + Synthetic Data Support:** Automatically merges both datasets
+- ✅ **UPI Preprocessing:** Removes transaction IDs, bank tags, and normalizes text
+- ✅ **Enhanced Training:** Uses both real and synthetic data for better accuracy
 
 **Metrics:**
 - **Macro F1:** 0.8859 (target: ≥0.90)
@@ -294,8 +345,15 @@ categories:
 
 **After modification:**
 1. Regenerate dataset (if needed): `python3 create_synthetic_dataset.py --samples 3000 --output transactions_distilbert.csv`
-2. Retrain model: `python3 train_distilbert.py` (will merge DB + YAML categories)
+2. Retrain model: `python3 train_distilbert.py` (will merge DB + YAML categories, real + synthetic data)
 3. Spring Boot will automatically use the new model (local inference)
+
+**Training with Mixed Data:**
+The training pipeline now automatically:
+- Merges `transactions_distilbert.csv` (real) + `transactions_synthetic.csv` (synthetic)
+- Normalizes column names (`description` → `narration`)
+- Applies UPI preprocessing (removes IDs, bank tags)
+- Normalizes category names
 
 **Note:** The YAML file serves as both a fallback and a reference. Categories in the database will take precedence, but any additional categories in the YAML file will be included in the merged taxonomy.
 
@@ -463,6 +521,97 @@ This project is developed for educational/competition purposes. Dataset sourced 
 
 ---
 
+## 📋 Checking Logs
+
+### Application Logs
+
+**Spring Boot Logs:**
+```bash
+# View application logs
+tail -f budgetbuddy.log
+
+# Or check log directory
+ls -lh logs/
+cat logs/budgetbuddy.log
+
+# Search for errors
+grep -i error budgetbuddy.log | tail -20
+
+# Search for prediction results
+grep -i "prediction result" budgetbuddy.log | tail -20
+```
+
+**Log Location:** `budgetbuddy.log` (project root) or `logs/budgetbuddy.log`
+
+**Log Configuration** (`application.properties`):
+```properties
+logging.file.name=budgetbuddy.log
+logging.file.path=logs
+logging.level.com.budgetbuddy.controller=DEBUG
+logging.level.com.budgetbuddy.service=DEBUG
+```
+
+### Training Logs
+
+**ML Training Logs:**
+```bash
+cd mybudget-ai
+
+# View latest training log
+tail -f logs/train_distilbert_*.log
+
+# List all training logs
+ls -lh logs/
+
+# View specific log
+cat logs/train_distilbert_20251102_233036.log
+
+# Search for errors in training
+grep -i error logs/train_distilbert_*.log
+
+# Check training metrics
+grep -i "F1\|accuracy\|macro" logs/train_distilbert_*.log | tail -20
+```
+
+**Training Log Location:** `mybudget-ai/logs/train_distilbert_YYYYMMDD_HHMMSS.log`
+
+### Inference Logs
+
+**Python Inference Output:**
+```bash
+cd mybudget-ai
+
+# Test inference with verbose output
+python3 inference_local.py "UPI-ZOMATO-ZOMATO@RAPL-RATN000RAPL-500542064115-FOOD" 2>&1
+
+# Check stderr for warnings
+python3 inference_local.py "test" 2>&1 | grep -i warning
+```
+
+**Spring Boot Inference Logs:**
+- Check `budgetbuddy.log` for Java service calls
+- Look for: `"Calling categorization for narration"`
+- Look for: `"Prediction result: category=..."`
+- Check inference timing: `"time=XXXms"`
+
+### Common Log Queries
+
+```bash
+# All prediction results
+grep "Prediction result" budgetbuddy.log
+
+# Failed predictions
+grep -i "failed\|error" budgetbuddy.log | grep -i predict
+
+# Slow predictions (>1000ms)
+grep "Prediction result" budgetbuddy.log | grep -E "time=[1-9][0-9]{3,}ms"
+
+# Batch prediction statistics
+grep -i "batch\|inference" budgetbuddy.log | tail -30
+```
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Local Inference Errors
@@ -568,10 +717,19 @@ See [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) for detailed instructions.
 ---
 
 **Last Updated:** November 2025  
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Status:** Production Ready
 
-### Recent Updates (v1.1.0)
+### Recent Updates
+
+#### v1.2.0 (November 2025)
+- ✨ **Mixed Real + Synthetic Data**: Automatically merges real and synthetic datasets (~10,000 samples)
+- 🔧 **UPI Preprocessing**: Removes transaction IDs, bank tags, normalizes UPI text
+- 📊 **Enhanced Training**: Improved accuracy with larger, cleaner dataset
+- 🔄 **Column Normalization**: Handles both `narration` and `description` columns
+- 📝 **Category Normalization**: Standardizes category name variations
+
+#### v1.1.0
 - ✨ **Batch Predictions**: Faster processing for bulk transaction imports
 - 📊 **Manual Categories Dashboard**: Separate view for manually assigned categories
 - 🎥 **Demo Recording Tools**: Scripts for UI demonstration recordings
