@@ -43,6 +43,29 @@ fun DashboardScreen(
     )
     val state by viewModel.state.collectAsState()
     
+    // Refresh data when screen is displayed and log for debugging
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        android.util.Log.d("DashboardScreen", "📊 DashboardScreen composed, refreshing data...")
+        viewModel.refresh()
+        
+        // Debug: Log database data on screen load
+        val app = context.applicationContext as com.budgetbuddy.mobile.BudgetBuddyApplication
+        val transactionDao = app.database.transactionDao()
+        com.budgetbuddy.mobile.data.repository.DatabaseDebugHelper.logAllTransactions(
+            transactionDao,
+            userId
+        )
+        
+        // Log dashboard state
+        android.util.Log.d("DashboardScreen", "📊 Dashboard State:")
+        android.util.Log.d("DashboardScreen", "   Income: ${state.totalIncome}")
+        android.util.Log.d("DashboardScreen", "   Expenses: ${state.totalExpenses}")
+        android.util.Log.d("DashboardScreen", "   Balance: ${state.balance}")
+        android.util.Log.d("DashboardScreen", "   Categories: ${state.expensesByCategory.size}")
+        android.util.Log.d("DashboardScreen", "   Loading: ${state.isLoading}")
+        android.util.Log.d("DashboardScreen", "   Error: ${state.error}")
+    }
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,14 +95,67 @@ fun DashboardScreen(
         },
         containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
+        val scrollState = rememberScrollState()
+        
+        // Show loading indicator
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (state.error != null) {
+            // Show error message
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Error loading dashboard",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = state.error ?: "Unknown error",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { viewModel.refresh() }
+                ) {
+                    Text("Retry")
+                }
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
             // Summary Cards
             Text(
                 text = "Financial Summary",
@@ -243,6 +319,8 @@ fun DashboardScreen(
                     }
                 }
             }
+            }
+        }
         }
     }
 }

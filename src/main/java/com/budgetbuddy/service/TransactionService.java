@@ -118,14 +118,44 @@ public class TransactionService {
             
             while (rowIterator.hasNext()) {
                 Row row = rowIterator.next();
-                if (row.getCell(0) == null || row.getCell(0).getStringCellValue().trim().isEmpty()) {
+                
+                // Safely check if first cell is empty (handles both STRING and NUMERIC cells)
+                Cell dateCell = row.getCell(0);
+                String firstCellValue = getCellValueAsString(dateCell);
+                if (dateCell == null || firstCellValue == null || firstCellValue.trim().isEmpty()) {
                     break;
                 }
+                
+                // Skip header/footer rows
+                String trimmedValue = firstCellValue.trim().toUpperCase();
+                if (trimmedValue.contains("STATEMENT") || 
+                    trimmedValue.contains("SUMMARY") ||
+                    trimmedValue.contains("OPENING BALANCE") ||
+                    trimmedValue.contains("CLOSING BALANCE") ||
+                    trimmedValue.matches("^[*]+$") ||
+                    trimmedValue.matches("^[-=]+$")) {
+                    logger.debug("Skipping header/footer row {}: {}", row.getRowNum(), trimmedValue);
+                    continue;
+                }
+                
                 try {
-                    String dateString = row.getCell(0).getStringCellValue();
-                    LocalDate date = LocalDate.parse(dateString, dateFormatter);
-                    String narration = row.getCell(1).getStringCellValue();
-                    String chequeRefNo = row.getCell(2).getStringCellValue();
+                    String dateString = getCellValueAsString(dateCell);
+                    if (dateString == null || dateString.trim().isEmpty()) {
+                        logger.warn("Skipping row {} - empty date", row.getRowNum());
+                        continue;
+                    }
+                    LocalDate date = LocalDate.parse(dateString.trim(), dateFormatter);
+                    
+                    String narration = getCellValueAsString(row.getCell(1));
+                    if (narration == null || narration.trim().isEmpty()) {
+                        logger.warn("Skipping row {} - empty narration", row.getRowNum());
+                        continue;
+                    }
+                    
+                    String chequeRefNo = getCellValueAsString(row.getCell(2));
+                    if (chequeRefNo == null) {
+                        chequeRefNo = "";
+                    }
                     Double withdrawalAmt = getNumericCellValue(row.getCell(4));
                     Double depositAmt = getNumericCellValue(row.getCell(5));
                     Double closingAmt = getNumericCellValue(row.getCell(6));
@@ -141,6 +171,12 @@ public class TransactionService {
                     ));
                 } catch (DateTimeParseException e) {
                     logger.warn("Skipping row {} due to date parse error: {}", row.getRowNum(), e.getMessage());
+                } catch (IllegalStateException e) {
+                    // Handle "Cannot get a STRING value from a NUMERIC cell" error
+                    logger.warn("Skipping row {} due to cell type error (likely numeric cell read as string): {}", row.getRowNum(), e.getMessage());
+                } catch (Exception e) {
+                    // Catch any other parsing errors (header/footer rows, etc.)
+                    logger.warn("Skipping row {} due to error: {} - {}", row.getRowNum(), e.getClass().getSimpleName(), e.getMessage());
                 }
             }
             
@@ -237,6 +273,46 @@ public class TransactionService {
         }
     }
 
+    // Helper method to safely get cell value as string (handles both STRING and NUMERIC cells)
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        
+        try {
+            switch (cell.getCellType()) {
+                case STRING:
+                    return cell.getStringCellValue();
+                case NUMERIC:
+                    // If numeric and date-formatted, return as formatted string
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        return cell.getDateCellValue().toString();
+                    }
+                    // Otherwise, return numeric value as string
+                    double numValue = cell.getNumericCellValue();
+                    if (numValue == (long) numValue) {
+                        return String.valueOf((long) numValue);
+                    }
+                    return String.valueOf(numValue);
+                case BOOLEAN:
+                    return String.valueOf(cell.getBooleanCellValue());
+                case FORMULA:
+                    // Handle formula cells
+                    try {
+                        return cell.getStringCellValue();
+                    } catch (IllegalStateException e) {
+                        // If formula returns numeric, get numeric value
+                        return String.valueOf(cell.getNumericCellValue());
+                    }
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            logger.debug("Error reading cell value: {}", e.getMessage());
+            return null;
+        }
+    }
+    
     // Helper method to handle numeric cell values and nulls
     private Double getNumericCellValue(Cell cell) {
         if (cell == null) {
@@ -256,6 +332,20 @@ public class TransactionService {
             } catch (NumberFormatException e) {
                 // If the string cannot be parsed as a number, return null
                 return null;
+            }
+        }
+        
+        // Handle formula cells that return numeric values
+        if (cell.getCellType() == CellType.FORMULA) {
+            try {
+                return cell.getNumericCellValue();
+            } catch (IllegalStateException e) {
+                // Formula returns non-numeric, try string parsing
+                try {
+                    return Double.parseDouble(cell.getStringCellValue());
+                } catch (Exception ignored) {
+                    return null;
+                }
             }
         }
 
@@ -315,8 +405,15 @@ public class TransactionService {
         return transactionsByCategory;
     }
 
+    public List<Transaction> filterTransactions(int month, int year, Long userId, String categoryName, 
+                                               Double amountValue, String amountOperator, String narration) {
+        return transactionRepository.filterTransactions(month, year, userId, categoryName, 
+                                                        amountValue, amountOperator, narration);
+    }
+    
+    // Overloaded method for backward compatibility
     public List<Transaction> filterTransactions(int month, int year, Long userId, String categoryName) {
-        return transactionRepository.filterTransactions(month, year, userId, categoryName);
+        return filterTransactions(month, year, userId, categoryName, null, null, null);
     }
 
     public void updateCategory(Long transactionId, String categoryName) {

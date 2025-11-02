@@ -9,7 +9,6 @@ import kotlinx.coroutines.withContext
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
-import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.time.LocalDate
@@ -79,21 +78,26 @@ class FileImporter(private val context: Context) {
             
             android.util.Log.d("FileImporter", "File opened successfully, detecting format...")
             
-            // Detect file format and create appropriate workbook
-            // Try XLSX first (new format), then XLS (old format)
+            // Auto-detect and create workbook (supports both XLSX and XLS)
             workbook = try {
-                XSSFWorkbook(inputStream) as Workbook
-            } catch (e: Exception) {
-                android.util.Log.d("FileImporter", "XLSX format failed, trying XLS format: ${e.message}")
+                // Try XLSX first (newer format)
                 try {
-                    // Reset stream for XLS reading
+                    XSSFWorkbook(inputStream)
+                } catch (e1: Exception) {
+                    android.util.Log.d("FileImporter", "XLSX failed, trying XLS: ${e1.message}")
+                    // Close and reopen stream for XLS
                     inputStream.close()
                     inputStream = context.contentResolver.openInputStream(uri)
-                    HSSFWorkbook(inputStream) as Workbook
-                } catch (e2: Exception) {
-                    android.util.Log.e("FileImporter", "Both XLSX and XLS formats failed", e2)
-                    return@withContext ImportResult(false, emptyList(), listOf("Unsupported Excel format. Please use .xlsx or .xls files."))
+                        ?: return@withContext ImportResult(false, emptyList(), listOf("Could not reopen file for XLS format"))
+                    HSSFWorkbook(inputStream)
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("FileImporter", "Failed to create workbook: ${e.message}", e)
+                return@withContext ImportResult(false, emptyList(), listOf("Invalid Excel file format. Please use .xlsx or .xls files. Error: ${e.message}"))
+            }
+            
+            if (workbook == null) {
+                return@withContext ImportResult(false, emptyList(), listOf("Failed to create workbook"))
             }
             
             val sheet = workbook.getSheetAt(0) // First sheet
@@ -102,23 +106,79 @@ class FileImporter(private val context: Context) {
             val transactions = mutableListOf<Transaction>()
             val errors = mutableListOf<String>()
             
-            // Skip header row (row 0)
-            for (rowIndex in 1..sheet.lastRowNum) {
+            // Find the actual data start row (skip empty rows and header rows)
+            var dataStartRow = 1
+            for (i in 0..minOf(10, sheet.lastRowNum)) {
+                val row = sheet.getRow(i)
+                if (row != null && !isRowEmpty(row) && !isHeaderRow(row)) {
+                    dataStartRow = i
+                    break
+                }
+            }
+            
+            android.util.Log.d("FileImporter", "Starting data extraction from row $dataStartRow (sheet has ${sheet.lastRowNum + 1} total rows)")
+            
+            var rowsProcessed = 0
+            var rowsSkipped = 0
+            var rowsWithData = 0
+            
+            // Process rows starting from dataStartRow
+            for (rowIndex in dataStartRow..sheet.lastRowNum) {
                 val row = sheet.getRow(rowIndex) ?: continue
+                rowsProcessed++
+                
+                // Skip completely empty rows (silently)
+                if (isRowEmpty(row)) {
+                    rowsSkipped++
+                    continue
+                }
+                
+                // Skip header/footer rows (silently)
+                if (isHeaderRow(row)) {
+                    rowsSkipped++
+                    continue
+                }
+                
+                rowsWithData++
                 
                 try {
+                    // Log first few rows for debugging
+                    if (rowsWithData <= 5) {
+                        val dateCell = row.getCell(0)
+                        val narrationCell = row.getCell(1)
+                        android.util.Log.d("FileImporter", "Row ${rowIndex + 1}: date='${getCellValueAsString(dateCell)}', narration='${getCellValueAsString(narrationCell)}'")
+                    }
+                    
                     val transaction = parseExcelRow(row, userId)
                     if (transaction != null) {
                         transactions.add(transaction)
-                        android.util.Log.d("FileImporter", "Parsed transaction: ${transaction.narration}")
+                        
+                        // Log first transaction details for debugging
+                        if (transactions.size == 1) {
+                            android.util.Log.d("FileImporter", "✓ First transaction: date=${transaction.date}, narration='${transaction.narration}', amount=${transaction.amount}")
+                        }
+                        
+                        // Log every 10th transaction to avoid spam
+                        if (transactions.size % 10 == 0) {
+                            android.util.Log.d("FileImporter", "✓ Parsed ${transactions.size} transactions so far...")
+                        }
                     } else {
+                        // Only log warnings for first few errors to avoid spam
+                        if (errors.size < 5) {
+                            android.util.Log.w("FileImporter", "✗ Row ${rowIndex + 1}: Invalid data format - skipping")
+                        }
                         errors.add("Row ${rowIndex + 1}: Invalid data format")
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("FileImporter", "Error parsing row ${rowIndex + 1}: ${e.message}", e)
+                    // Only log first few errors
+                    if (errors.size < 5) {
+                        android.util.Log.e("FileImporter", "Error parsing row ${rowIndex + 1}: ${e.message}")
+                    }
                     errors.add("Row ${rowIndex + 1}: ${e.message}")
                 }
             }
+            
+            android.util.Log.d("FileImporter", "Processing complete: $rowsProcessed rows processed, $rowsWithData rows with data, $rowsSkipped skipped, ${transactions.size} transactions created")
             
             workbook.close()
             inputStream?.close()
@@ -149,15 +209,48 @@ class FileImporter(private val context: Context) {
     
     private fun parseCSVRow(row: Array<String>, userId: Long): Transaction? {
         try {
-            // Expected format: Date, Narration, Amount, Withdrawal, Deposit, Closing Balance
-            val dateStr = row.getOrNull(0) ?: return null
-            val narration = row.getOrNull(1) ?: ""
+            // Match Spring Boot CSV format: Date, Narration/Description, Amount (required columns)
+            // Optional: Withdrawal, Deposit, Closing Balance
+            val dateStr = row.getOrNull(0)?.trim() ?: return null
+            val narrationStr = row.getOrNull(1)?.trim() ?: ""
+            
+            // Strict validation: both date and narration must be present and non-empty
+            if (dateStr.isBlank() || narrationStr.isBlank()) {
+                return null // Skip rows with missing required data
+            }
+            
+            // Additional check: narration should not be very short (likely invalid)
+            val trimmedNarration = narrationStr.trim()
+            if (trimmedNarration.length < 2) {
+                return null
+            }
+            
+            // Parse date - skip if parsing fails (no default to today)
+            val date = parseDate(dateStr) ?: return null
+            
+            val narration = trimmedNarration
             val amount = row.getOrNull(2)?.toDoubleOrNull() ?: 0.0
             val withdrawal = row.getOrNull(3)?.toDoubleOrNull()
             val deposit = row.getOrNull(4)?.toDoubleOrNull()
             val closingBalance = row.getOrNull(5)?.toDoubleOrNull()
             
-            val date = parseDate(dateStr)
+            // Match Spring Boot amount calculation: if amount provided use it, else calculate from withdrawal/deposit
+            val finalAmount = if (amount != 0.0) {
+                amount
+            } else {
+                val withdrawalAmt = withdrawal ?: 0.0
+                val depositAmt = deposit ?: 0.0
+                if (withdrawalAmt <= 0.0) {
+                    depositAmt
+                } else {
+                    -1 * withdrawalAmt
+                }
+            }
+            
+            // Skip transactions with no financial data
+            if (finalAmount == 0.0 && withdrawal == null && deposit == null) {
+                return null
+            }
             
             return Transaction(
                 date = date,
@@ -172,23 +265,150 @@ class FileImporter(private val context: Context) {
                 predictedIntent = null,
                 predictionConfidence = null,
                 categoryName = null,
-                amount = amount
+                amount = finalAmount
             )
         } catch (e: Exception) {
+            android.util.Log.e("FileImporter", "Error parsing CSV row: ${e.message}", e)
             return null
+        }
+    }
+    
+    /**
+     * Check if a row is completely empty
+     */
+    private fun isRowEmpty(row: Row): Boolean {
+        for (cellIndex in 0 until row.lastCellNum) {
+            val cell = row.getCell(cellIndex)
+            if (cell != null) {
+                val value = getCellValueAsString(cell)
+                if (!value.isNullOrBlank()) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+    
+    /**
+     * Check if a row looks like a header/footer row
+     */
+    private fun isHeaderRow(row: Row): Boolean {
+        val firstCell = getCellValueAsString(row.getCell(0)) ?: return false
+        val upperValue = firstCell.trim().uppercase()
+        return upperValue.contains("STATEMENT") ||
+               upperValue.contains("SUMMARY") ||
+               upperValue.contains("OPENING BALANCE") ||
+               upperValue.contains("CLOSING BALANCE") ||
+               upperValue.contains("DATE") ||
+               upperValue.contains("NARRATION") ||
+               upperValue.matches(Regex("^[*=]+$")) ||
+               upperValue.matches(Regex("^[-=]+$"))
+    }
+    
+    /**
+     * Safely extract cell value as string
+     */
+    private fun getCellValueAsString(cell: Cell?): String? {
+        if (cell == null) return null
+        
+        return when (cell.cellType) {
+            CellType.STRING -> cell.stringCellValue.trim()
+            CellType.NUMERIC -> {
+                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                    // Format date as string
+                    cell.dateCellValue.toString()
+                } else {
+                    // Format number as string (remove trailing zeros if decimal)
+                    val numValue = cell.numericCellValue
+                    if (numValue == numValue.toLong().toDouble()) {
+                        numValue.toLong().toString()
+                    } else {
+                        numValue.toString()
+                    }
+                }
+            }
+            CellType.BOOLEAN -> cell.booleanCellValue.toString()
+            CellType.FORMULA -> {
+                when (cell.cachedFormulaResultType) {
+                    CellType.STRING -> cell.stringCellValue.trim()
+                    CellType.NUMERIC -> {
+                        if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                            cell.dateCellValue.toString()
+                        } else {
+                            val numValue = cell.numericCellValue
+                            if (numValue == numValue.toLong().toDouble()) {
+                                numValue.toLong().toString()
+                            } else {
+                                numValue.toString()
+                            }
+                        }
+                    }
+                    CellType.BOOLEAN -> cell.booleanCellValue.toString()
+                    else -> cell.toString().trim()
+                }
+            }
+            CellType.BLANK -> null
+            else -> cell.toString().trim()
+        }?.takeIf { it.isNotBlank() }
+    }
+    
+    /**
+     * Safely extract numeric cell value
+     */
+    private fun getCellValueAsDouble(cell: Cell?): Double? {
+        if (cell == null) return null
+        
+        return try {
+            when (cell.cellType) {
+                CellType.NUMERIC -> cell.numericCellValue
+                CellType.STRING -> {
+                    val str = cell.stringCellValue.trim()
+                    if (str.isEmpty()) null else str.toDoubleOrNull()
+                }
+                CellType.FORMULA -> {
+                    when (cell.cachedFormulaResultType) {
+                        CellType.NUMERIC -> cell.numericCellValue
+                        CellType.STRING -> {
+                            val str = cell.stringCellValue.trim()
+                            if (str.isEmpty()) null else str.toDoubleOrNull()
+                        }
+                        else -> null
+                    }
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
     
     private fun parseExcelRow(row: Row, userId: Long): Transaction? {
         try {
+            // Match Spring Boot format: Date(0), Narration(1), ChequeRefNo(2), skip(3), Withdrawal(4), Deposit(5), ClosingBalance(6)
             val dateCell = row.getCell(0)
             val narrationCell = row.getCell(1)
-            val amountCell = row.getCell(2)
-            val withdrawalCell = row.getCell(3)
-            val depositCell = row.getCell(4)
-            val closingBalanceCell = row.getCell(5)
+            val chequeRefNoCell = row.getCell(2)
+            // Column 3 is skipped (matches Spring Boot)
+            val withdrawalCell = row.getCell(4)
+            val depositCell = row.getCell(5)
+            val closingBalanceCell = row.getCell(6)
             
-            val date = when {
+            // Validate required fields - both must be present and meaningful
+            val dateStr = getCellValueAsString(dateCell)
+            val narrationStr = getCellValueAsString(narrationCell)
+            
+            // Strict validation: both date and narration must be present and non-empty
+            if (dateStr.isNullOrBlank() || narrationStr.isNullOrBlank()) {
+                return null // Skip rows with missing required data
+            }
+            
+            // Additional check: narration should not be just whitespace or single characters
+            val trimmedNarration = narrationStr.trim()
+            if (trimmedNarration.length < 2) {
+                return null // Skip rows with very short narration (likely invalid)
+            }
+            
+            val parsedDate = when {
                 dateCell?.cellType == CellType.NUMERIC -> {
                     // Excel dates are stored as numeric values
                     if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(dateCell)) {
@@ -199,45 +419,62 @@ class FileImporter(private val context: Context) {
                                 .toLocalDate()
                         } catch (e: Exception) {
                             // Fallback to string parsing if date conversion fails
-                            parseDate(dateCell.toString())
+                            parseDate(dateStr)
                         }
                     } else {
                         // If not formatted as date, try to parse as string
-                        parseDate(dateCell.toString())
+                        parseDate(dateStr)
                     }
                 }
                 dateCell?.cellType == CellType.STRING -> {
-                    parseDate(dateCell.stringCellValue)
+                    parseDate(dateStr)
                 }
                 dateCell?.cellType == CellType.FORMULA -> {
                     // Handle formula cells
                     when (dateCell.cachedFormulaResultType) {
-                        CellType.STRING -> parseDate(dateCell.stringCellValue)
+                        CellType.STRING -> parseDate(dateStr)
                         CellType.NUMERIC -> {
                             if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(dateCell)) {
                                 dateCell.dateCellValue.toInstant()
                                     .atZone(java.time.ZoneId.systemDefault())
                                     .toLocalDate()
                             } else {
-                                parseDate(dateCell.toString())
+                                parseDate(dateStr)
                             }
                         }
-                        else -> LocalDate.now()
+                        else -> parseDate(dateStr)
                     }
                 }
-                else -> LocalDate.now()
+                else -> parseDate(dateStr)
             }
             
-            val narration = narrationCell?.stringCellValue ?: ""
-            val amount = amountCell?.numericCellValue ?: 0.0
-            val withdrawal = withdrawalCell?.numericCellValue
-            val deposit = depositCell?.numericCellValue
-            val closingBalance = closingBalanceCell?.numericCellValue
+            // If date parsing failed, skip this row
+            val date = parsedDate ?: return null
+            
+            val narration = trimmedNarration
+            val chequeRefNo = getCellValueAsString(chequeRefNoCell)?.trim() ?: ""
+            val withdrawal = getCellValueAsDouble(withdrawalCell)
+            val deposit = getCellValueAsDouble(depositCell)
+            val closingBalance = getCellValueAsDouble(closingBalanceCell)
+            
+            // Match Spring Boot amount calculation: withdrawalAmt <= 0.0 ? depositAmt : (-1 * withdrawalAmt)
+            val withdrawalAmt = withdrawal ?: 0.0
+            val depositAmt = deposit ?: 0.0
+            val finalAmount = if (withdrawalAmt <= 0.0) {
+                depositAmt
+            } else {
+                -1 * withdrawalAmt
+            }
+            
+            // Skip transactions with no financial data
+            if (finalAmount == 0.0 && withdrawal == null && deposit == null) {
+                return null
+            }
             
             return Transaction(
                 date = date,
                 narration = narration,
-                chequeRefNo = null,
+                chequeRefNo = if (chequeRefNo.isNotEmpty()) chequeRefNo else null,
                 withdrawalAmt = withdrawal,
                 depositAmt = deposit,
                 closingBalance = closingBalance,
@@ -247,31 +484,43 @@ class FileImporter(private val context: Context) {
                 predictedIntent = null,
                 predictionConfidence = null,
                 categoryName = null,
-                amount = amount
+                amount = finalAmount
             )
         } catch (e: Exception) {
+            android.util.Log.e("FileImporter", "Error parsing Excel row ${row.rowNum + 1}: ${e.message}", e)
             return null
         }
     }
     
-    private fun parseDate(dateStr: String): LocalDate {
+    private fun parseDate(dateStr: String?): LocalDate? {
+        if (dateStr.isNullOrBlank()) return null
+        
+        val trimmed = dateStr.trim()
+        if (trimmed.isEmpty()) return null
+        
+        // Match Spring Boot date formats - prioritize dd/MM/yy (Spring Boot's primary format)
         val formatters = listOf(
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("dd/MM/yy"),  // Spring Boot primary format
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),  // ISO format (CSV)
             DateTimeFormatter.ofPattern("MM/dd/yyyy"),
-            DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("MM/dd/yy"),
+            DateTimeFormatter.ofPattern("dd-MM-yy"),
+            DateTimeFormatter.ISO_LOCAL_DATE
         )
         
         for (formatter in formatters) {
             try {
-                return LocalDate.parse(dateStr.trim(), formatter)
+                return LocalDate.parse(trimmed, formatter)
             } catch (e: Exception) {
                 // Try next formatter
             }
         }
         
-        // Default to today if parsing fails
-        return LocalDate.now()
+        // Return null if parsing fails - let caller handle default
+        android.util.Log.w("FileImporter", "Could not parse date: '$dateStr'")
+        return null
     }
 }
 

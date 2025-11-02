@@ -91,6 +91,36 @@
                                 </select>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="narration" class="form-label">Narration <span class="text-muted">(Optional)</span></label>
+                                <input type="text" name="narration" id="narration" class="form-control" 
+                                       placeholder="Search in transaction description..."
+                                       th:value="${narration}">
+                                <small class="form-text text-muted">Case-insensitive search in transaction narration</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Amount Filter <span class="text-muted">(Optional)</span></label>
+                                <div class="row g-2">
+                                    <div class="col-5">
+                                        <select name="amountOperator" id="amountOperator" class="form-select">
+                                            <option value="">No filter</option>
+                                            <option value="gt" th:selected="${amountOperator == 'gt'}">Greater Than (>)</option>
+                                            <option value="gte" th:selected="${amountOperator == 'gte'}">Greater or Equal (≥)</option>
+                                            <option value="lt" th:selected="${amountOperator == 'lt'}">Less Than (<)</option>
+                                            <option value="lte" th:selected="${amountOperator == 'lte'}">Less or Equal (≤)</option>
+                                            <option value="eq" th:selected="${amountOperator == 'eq'}">Equals (=)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-7">
+                                        <input type="number" name="amountValue" id="amountValue" class="form-control" 
+                                               step="0.01" placeholder="Amount"
+                                               th:value="${amountValue}">
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">Filter transactions by amount</small>
+                            </div>
+
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-funnel-fill me-2"></i>Filter Transactions

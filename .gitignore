@@ -52,6 +52,9 @@ mybudget-ai/models/*_*.pkl
 # Large model files (exceed GitHub 100MB limit)
 *.safetensors
 mybudget-ai/models/**/*.safetensors
+# PyTorch Mobile model files (too large for GitHub)
+*.ptl
+mobile-version/app/src/main/assets/*.ptl
 # Large CSV files
 *.csv
 !mybudget-ai/transactions_synthetic.csv

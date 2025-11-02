@@ -345,11 +345,14 @@ public class TransactionController {
                                      @RequestParam(required = false) Integer year,
                                      @RequestParam(required = false) Long userId,
                                      @RequestParam(required = false) String category, // Optional category filter
+                                     @RequestParam(required = false) Double amountValue,
+                                     @RequestParam(required = false) String amountOperator,
+                                     @RequestParam(required = false) String narration,
                                      Model model,
                                      RedirectAttributes redirectAttributes) {
 
-        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}",
-                month, year, userId, category);
+        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}, amount: {} {}, narration: {}",
+                month, year, userId, category, amountOperator, amountValue, narration);
         List<User> users = userRepository.findAll();
         model.addAttribute("users", users);
 
@@ -357,19 +360,39 @@ public class TransactionController {
             // Handle optional parameters and set default values where necessary
             int monthValue = (month != null) ? month.getValue() : -1;  // Default to -1 for unspecified month
             int yearValue = (year != null) ? year : -1;
-            String categoryValue=(category!=null && !category.isEmpty())? category : null ;
+            String categoryValue = (category != null && !category.isEmpty()) ? category : null;
+            
+            // Validate and sanitize amount operator
+            String validAmountOperator = null;
+            if (amountOperator != null && !amountOperator.isEmpty()) {
+                if (amountOperator.equals("gt") || amountOperator.equals("lt") || 
+                    amountOperator.equals("gte") || amountOperator.equals("lte") || 
+                    amountOperator.equals("eq")) {
+                    validAmountOperator = amountOperator;
+                }
+            }
+            
+            // Sanitize narration (trim whitespace)
+            String narrationValue = (narration != null && !narration.trim().isEmpty()) ? narration.trim() : null;
 
-            // Log the adjusted month and year values
-            logger.debug("Processed month: {}, year: {}", monthValue, yearValue);
-            logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}",
-                    monthValue, yearValue, userId, categoryValue);
+            // Log the adjusted values
+            logger.debug("Processed month: {}, year: {}, amount: {} {}, narration: {}",
+                    monthValue, yearValue, validAmountOperator, amountValue, narrationValue);
+            
             // Call the service to filter transactions
-            List<Transaction> transactions = transactionService.filterTransactions(monthValue, yearValue, null ,categoryValue);
+            List<Transaction> transactions = transactionService.filterTransactions(
+                    monthValue, yearValue, userId, categoryValue, 
+                    amountValue, validAmountOperator, narrationValue);
 
             // Add results to the model for view rendering
             model.addAttribute("transactions", transactions);
             model.addAttribute("month", month);
             model.addAttribute("year", year);
+            model.addAttribute("userId", userId);
+            model.addAttribute("categoryKeyword", category);
+            model.addAttribute("amountValue", amountValue);
+            model.addAttribute("amountOperator", amountOperator);
+            model.addAttribute("narration", narration);
             model.addAttribute("categoriesKeywords", categoryKeywordService.getDistinctCategories());
             long transactionCount = transactions.size();
             double totalAmount = transactions.stream().mapToDouble(Transaction::getAmount).sum();
@@ -381,14 +404,14 @@ public class TransactionController {
             if (transactions.isEmpty()) {
                 logger.info("No transactions found for the given filters.");
             } else {
-                logger.debug("Filtered {} transactions for month: {}, year: {}, userId: {}, category: {}",
-                        transactions.size(), month, year, userId, category);
+                logger.debug("Filtered {} transactions for month: {}, year: {}, userId: {}, category: {}, amount: {} {}, narration: {}",
+                        transactions.size(), month, year, userId, category, amountOperator, amountValue, narration);
             }
 
         } catch (Exception e) {
             // Log the error with exception details for debugging
-            logger.error("Error occurred while filtering transactions: month={}, year={}, userId={}, category={}. Exception: {}",
-                    month, year, userId, category, e.getMessage(), e);
+            logger.error("Error occurred while filtering transactions: month={}, year={}, userId={}, category={}, amount={} {}, narration={}. Exception: {}",
+                    month, year, userId, category, amountOperator, amountValue, narration, e.getMessage(), e);
         }
 
         logger.info("Exiting filterTransactions method");

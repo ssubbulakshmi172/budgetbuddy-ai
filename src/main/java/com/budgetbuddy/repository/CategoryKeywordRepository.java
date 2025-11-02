@@ -20,4 +20,9 @@ public interface CategoryKeywordRepository extends JpaRepository<CategoryKeyword
 
     @Query("SELECT DISTINCT ck.categoryName FROM CategoryKeyword ck WHERE ck.categoryName IS NOT NULL")
     List<String> findDistinctCategoryNames();
+    
+    List<CategoryKeyword> findByCategoriesFor(String categoriesFor);
+    
+    @Query("SELECT DISTINCT ck.categoryName FROM CategoryKeyword ck WHERE ck.categoriesFor = :categoriesFor AND ck.categoryName IS NOT NULL")
+    List<String> findDistinctCategoryNamesByCategoriesFor(String categoriesFor);
 }

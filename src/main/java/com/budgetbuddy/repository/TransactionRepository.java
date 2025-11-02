@@ -44,11 +44,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "AND (:year = -1 OR FUNCTION('YEAR', t.date) = :year) " +  // Year filter
             "AND (:userId IS NULL OR t.user.id = :userId) " +  // Optional userId filter
             "AND ((:categoryKeyword IS NULL OR t.categoryName = :categoryKeyword) " +
-            "OR (:categoryKeyword = 'EMPTY' AND (t.categoryName IS NULL OR t.categoryName = '')))")
+            "OR (:categoryKeyword = 'EMPTY' AND (t.categoryName IS NULL OR t.categoryName = ''))) " +
+            "AND (:amountValue IS NULL OR :amountOperator IS NULL OR " +  // Amount filter
+            "(:amountOperator = 'gt' AND t.amount > :amountValue) " +
+            "OR (:amountOperator = 'lt' AND t.amount < :amountValue) " +
+            "OR (:amountOperator = 'gte' AND t.amount >= :amountValue) " +
+            "OR (:amountOperator = 'lte' AND t.amount <= :amountValue) " +
+            "OR (:amountOperator = 'eq' AND t.amount = :amountValue)) " +
+            "AND (:narration IS NULL OR LOWER(t.narration) LIKE LOWER(CONCAT('%', :narration, '%')))")  // Narration filter (case-insensitive)
     List<Transaction> filterTransactions(@Param("month") int month,
                                          @Param("year") Integer year,
                                          @Param("userId") Long userId,
-                                         @Param("categoryKeyword") String categoryKeyword);
+                                         @Param("categoryKeyword") String categoryKeyword,
+                                         @Param("amountValue") Double amountValue,
+                                         @Param("amountOperator") String amountOperator,
+                                         @Param("narration") String narration);
 
 
 

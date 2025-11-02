@@ -23,10 +23,29 @@ public class CategoryKeywordController {
     private TransactionService transactionService;
 
     @GetMapping({"", "/"})
-    public String listAllCategories(Model model) {
-        List<CategoryKeyword> categoryKeywords = categoryKeywordService.getAllCategories();  // Fetch categories from service
-        model.addAttribute("categoryKeywords", categoryKeywords);  // Add categories to the model
-        return "categories/list";  // Return the list view (Thymeleaf template)
+    public String listAllCategories(
+            @RequestParam(value = "view", required = false, defaultValue = "all") String view,
+            Model model) {
+        
+        List<CategoryKeyword> taxonomyCategories = categoryKeywordService.getTaxonomyCategories();
+        List<CategoryKeyword> manualCategories = categoryKeywordService.getManualCategories();
+        List<CategoryKeyword> allCategories = categoryKeywordService.getAllCategories();
+        
+        model.addAttribute("taxonomyCategories", taxonomyCategories);
+        model.addAttribute("manualCategories", manualCategories);
+        model.addAttribute("allCategories", allCategories);
+        model.addAttribute("currentView", view);
+        
+        // For backward compatibility, also include the old attribute
+        if ("taxonomy".equals(view)) {
+            model.addAttribute("categoryKeywords", taxonomyCategories);
+        } else if ("manual".equals(view)) {
+            model.addAttribute("categoryKeywords", manualCategories);
+        } else {
+            model.addAttribute("categoryKeywords", allCategories);
+        }
+        
+        return "categories/list";
     }
 
     @PostMapping("/delete/{id}")

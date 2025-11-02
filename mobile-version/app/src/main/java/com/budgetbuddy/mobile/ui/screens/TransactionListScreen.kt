@@ -1,9 +1,11 @@
 package com.budgetbuddy.mobile.ui.screens
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -12,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.size
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
+import com.budgetbuddy.mobile.ui.navigation.Screen
 import com.budgetbuddy.mobile.ui.viewmodel.TransactionViewModel
 import com.budgetbuddy.mobile.ui.viewmodel.TransactionViewModelFactory
 import com.budgetbuddy.mobile.ui.viewmodel.ViewModelProvider as VMProvider
@@ -21,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.budgetbuddy.mobile.util.CurrencyFormatter
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionListScreen(
     navController: NavController
@@ -35,73 +40,123 @@ fun TransactionListScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                viewModel.setSearchQuery(it)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search transactions...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            singleLine = true
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Delete All Button (only show if transactions exist)
-        if (state.transactions.isNotEmpty() && !state.isLoading) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        "Transactions",
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                actions = {
+                    if (state.transactions.isNotEmpty()) {
+                        IconButton(
+                            onClick = { showDeleteAllDialog = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete All",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screen.AddTransaction.route) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
             ) {
-                OutlinedButton(
-                    onClick = { showDeleteAllDialog = true },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Transaction"
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    viewModel.setSearchQuery(it)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search transactions...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Transaction List
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete All")
+                    CircularProgressIndicator()
+                }
+            } else if (state.transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No transactions found")
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.transactions) { transaction ->
+                        TransactionCard(transaction = transaction)
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
         }
         
-        // Transaction List
-        if (state.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (state.transactions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No transactions found")
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(state.transactions) { transaction ->
-                    TransactionCard(transaction = transaction)
+        // Delete All Confirmation Dialog
+        if (showDeleteAllDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAllDialog = false },
+                title = { Text("Delete All Transactions") },
+                text = { 
+                    Text("Are you sure you want to delete all ${state.transactions.size} transactions? This action cannot be undone.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteAllTransactions()
+                            showDeleteAllDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { showDeleteAllDialog = false }) {
+                        Text("Cancel")
+                    }
                 }
-            }
+            )
         }
     }
 }
