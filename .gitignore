@@ -81,6 +81,10 @@ Thumbs.db
 *.old
 ~$*.xlsx
 ~$*.xls
+# Excel files
+*.xls
+*.xlsx
+!mybudget-ai/transactions_synthetic.csv
 
 # Environment & Secrets
 .env
@@ -95,10 +99,19 @@ application-local.properties
 *.sqlite
 *.sqlite3
 
-# Demo Recordings & Video Files
+# Demo Recordings & Video Files (keep scripts, ignore outputs)
 *.mov
 *.mp4
 *.avi
 demo_recording_*.mov
 *_recording_*.mov
 ffmpeg_recording.log
+DEMO_UI_RECORDING.md
+RECORDING_STEPS.md
+DEMO_VIDEO_SCRIPT.md
+DEMO_VIDEO_QUICK_STEPS.md
+# Recording scripts
+demo_ui_recording.sh
+record_with_ffmpeg.sh
+# Setup docs
+mobile-version/SETUP_AND_DEBUG.md
