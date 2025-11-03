@@ -1,6 +1,7 @@
 package com.budgetbuddy.service;
 
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
@@ -27,7 +28,7 @@ public class LocalModelInferenceService {
 
     @Value("${python.inference.timeout:30}")
     private int timeoutSeconds;
-    
+
     /**
      * Initialize service - verify configuration on startup
      */
@@ -164,6 +165,7 @@ public class LocalModelInferenceService {
                 for (int i = 0; i < resultArray.length(); i++) {
                     org.json.JSONObject jsonResult = resultArray.getJSONObject(i);
                     String category = jsonResult.optString("predicted_category", "Uncategorized");
+                    String subcategory = jsonResult.optString("predicted_subcategory", null);
                     String transactionType = jsonResult.optString("transaction_type", null);
                     String intent = jsonResult.optString("intent", null);
                     double confidence = 0.0;
@@ -184,18 +186,18 @@ public class LocalModelInferenceService {
                         }
                     }
                     
-                    results.add(new PredictionResult(category, transactionType, intent, confidence));
+                    results.add(new PredictionResult(category, subcategory, transactionType, intent, confidence));
                 }
             } else {
                 // Fallback: create Uncategorized results
                 for (int i = 0; i < descriptions.size(); i++) {
-                    results.add(new PredictionResult("Uncategorized", null, null, 0.0));
+                    results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
                 }
             }
             
             // Ensure we return same number of results as input
             while (results.size() < descriptions.size()) {
-                results.add(new PredictionResult("Uncategorized", null, null, 0.0));
+                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
             }
             
             return results;
@@ -206,7 +208,7 @@ public class LocalModelInferenceService {
             // Return Uncategorized for all
             java.util.List<PredictionResult> results = new java.util.ArrayList<>();
             for (int i = 0; i < descriptions.size(); i++) {
-                results.add(new PredictionResult("Uncategorized", null, null, 0.0));
+                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
             }
             return results;
         }
@@ -220,7 +222,7 @@ public class LocalModelInferenceService {
      */
     public PredictionResult predictFull(String description) {
         if (description == null || description.trim().isEmpty()) {
-            return new PredictionResult("Uncategorized", null, null, 0.0);
+            return new PredictionResult("Uncategorized", null, null, null, 0.0);
         }
 
         try {
@@ -369,6 +371,7 @@ public class LocalModelInferenceService {
 
             // Extract results
             String category = jsonResponse.optString("predicted_category", "Uncategorized");
+            String subcategory = jsonResponse.optString("predicted_subcategory", null);
             String transactionType = jsonResponse.optString("transaction_type", null);
             String intent = jsonResponse.optString("intent", null);
             double confidence = 0.0;
@@ -385,13 +388,13 @@ public class LocalModelInferenceService {
                 }
             }
 
-            return new PredictionResult(category, transactionType, intent, confidence);
+            return new PredictionResult(category, subcategory, transactionType, intent, confidence);
 
         } catch (Exception e) {
             System.err.println("⚠️ Error in local inference for '" + description + "': " + e.getMessage());
             System.err.println("Exception type: " + e.getClass().getSimpleName());
             e.printStackTrace();
-            return new PredictionResult("Uncategorized", null, null, 0.0);
+            return new PredictionResult("Uncategorized", null, null, null, 0.0);
         }
     }
 
@@ -400,13 +403,15 @@ public class LocalModelInferenceService {
      */
     public static class PredictionResult {
         private final String predictedCategory;
+        private final String predictedSubcategory;
         private final String transactionType;
         private final String intent;
         private final double confidence;
 
-        public PredictionResult(String predictedCategory, String transactionType, 
-                               String intent, double confidence) {
+        public PredictionResult(String predictedCategory, String predictedSubcategory, 
+                               String transactionType, String intent, double confidence) {
             this.predictedCategory = predictedCategory;
+            this.predictedSubcategory = predictedSubcategory;
             this.transactionType = transactionType;
             this.intent = intent;
             this.confidence = confidence;
@@ -414,6 +419,10 @@ public class LocalModelInferenceService {
 
         public String getPredictedCategory() {
             return predictedCategory;
+        }
+
+        public String getPredictedSubcategory() {
+            return predictedSubcategory;
         }
 
         public String getTransactionType() {

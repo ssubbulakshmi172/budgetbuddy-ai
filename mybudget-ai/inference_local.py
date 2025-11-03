@@ -35,15 +35,40 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 # Import DistilBERT inference module
 try:
     from distilbert_inference import get_predictor
-    DISTILBERT_AVAILABLE = True
 except ImportError as e:
-    DISTILBERT_AVAILABLE = False
     sys.stderr.write(f"❌ Failed to import DistilBERT: {e}\n")
     sys.stderr.write("Please ensure distilbert_inference.py is in the same directory\n")
     sys.exit(1)
 
 # Load model on startup (singleton pattern)
 _predictor = None
+
+
+def extract_category_parts(category: str) -> tuple:
+    """
+    Extract top-level category and subcategory from full category string.
+    If category is in format "TopCategory / Subcategory", returns both parts.
+    Otherwise returns (category, None).
+    
+    Args:
+        category: Full category string (e.g., "Investments & Finance / Stocks & Bonds")
+        
+    Returns:
+        Tuple of (top_category, subcategory) where:
+        - top_category: Top-level category (e.g., "Investments & Finance")
+        - subcategory: Subcategory (e.g., "Stocks & Bonds") or None if no separator
+    """
+    if not category:
+        return (category, None)
+    
+    # Split on " / " separator
+    if " / " in category:
+        parts = category.split(" / ", 1)
+        if len(parts) == 2:
+            return (parts[0].strip(), parts[1].strip())
+    
+    # No separator found, return original category with no subcategory
+    return (category, None)
 
 
 def load_model():
@@ -84,35 +109,50 @@ def predict(description: str) -> dict:
     if not description or not description.strip():
         return {
             "error": "Empty description",
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }
     
     # Check if model loaded
     if _predictor is None:
         return {
             "error": "Model not loaded",
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }
     
     # Use DistilBERT for prediction
     try:
         result = _predictor.predict(description)
-        return {
+        # Extract top category and subcategory from full category
+        # (e.g., "Investments & Finance / Stocks & Bonds" -> "Investments & Finance" and "Stocks & Bonds")
+        full_category = result.get("category", "Uncategorized")
+        top_category, subcategory = extract_category_parts(full_category)
+        
+        # Build response with both category and subcategory
+        response = {
             "description": description,
             "model_type": "DistilBERT",
             "transaction_type": result.get("transaction_type", "N/A"),
-            "predicted_category": result.get("category", "Uncategorized"),
+            "predicted_category": top_category,
             "intent": result.get("intent", "N/A"),
-            "confidence": result.get("confidence", {}),
-            "all_probabilities": result.get("probabilities", {})
+            "confidence": result.get("confidence", {})
+            # Removed "all_probabilities" - only return top prediction
         }
+        
+        # Add subcategory if it exists
+        if subcategory:
+            response["predicted_subcategory"] = subcategory
+        
+        return response
     except Exception as e:
         sys.stderr.write(f"❌ DistilBERT prediction error: {e}\n")
         import traceback
         sys.stderr.write(f"Traceback: {traceback.format_exc()}\n")
         return {
             "error": str(e),
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }
 
 
@@ -132,7 +172,8 @@ def predict_batch(descriptions: list) -> list:
     if _predictor is None:
         return [{
             "error": "Model not loaded",
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }] * len(descriptions)
     
     results = []
@@ -140,25 +181,39 @@ def predict_batch(descriptions: list) -> list:
         if not desc or not desc.strip():
             results.append({
                 "error": "Empty description",
-                "predicted_category": "Uncategorized"
+                "predicted_category": "Uncategorized",
+                "predicted_subcategory": None
             })
         else:
             try:
                 result = _predictor.predict(desc)
-                results.append({
+                # Extract top category and subcategory from full category
+                # (e.g., "Investments & Finance / Stocks & Bonds" -> "Investments & Finance" and "Stocks & Bonds")
+                full_category = result.get("category", "Uncategorized")
+                top_category, subcategory = extract_category_parts(full_category)
+                
+                # Build response with both category and subcategory
+                batch_result = {
                     "description": desc,
                     "model_type": "DistilBERT",
                     "transaction_type": result.get("transaction_type", "N/A"),
-                    "predicted_category": result.get("category", "Uncategorized"),
+                    "predicted_category": top_category,
                     "intent": result.get("intent", "N/A"),
-                    "confidence": result.get("confidence", {}),
-                    "all_probabilities": result.get("probabilities", {})
-                })
+                    "confidence": result.get("confidence", {})
+                    # Removed "all_probabilities" - only return top prediction
+                }
+                
+                # Add subcategory if it exists
+                if subcategory:
+                    batch_result["predicted_subcategory"] = subcategory
+                
+                results.append(batch_result)
             except Exception as e:
                 sys.stderr.write(f"❌ Batch prediction error for '{desc}': {e}\n")
                 results.append({
                     "error": str(e),
-                    "predicted_category": "Uncategorized"
+                    "predicted_category": "Uncategorized",
+                    "predicted_subcategory": None
                 })
     
     return results
@@ -172,7 +227,8 @@ def main():
     except Exception as e:
         result = {
             "error": f"Failed to load model: {str(e)}",
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }
         print(json.dumps(result), file=sys.stdout, flush=True)
         sys.exit(1)
@@ -181,7 +237,8 @@ def main():
     if len(sys.argv) < 2:
         result = {
             "error": "Missing description argument",
-            "predicted_category": "Uncategorized"
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
         }
         print(json.dumps(result), file=sys.stdout, flush=True)
         sys.exit(1)
@@ -211,7 +268,8 @@ def main():
         except json.JSONDecodeError as e:
             result = {
                 "error": f"Invalid JSON array: {str(e)}",
-                "predicted_category": "Uncategorized"
+                "predicted_category": "Uncategorized",
+                "predicted_subcategory": None
             }
             print(json.dumps(result), file=sys.stdout, flush=True)
             sys.exit(1)

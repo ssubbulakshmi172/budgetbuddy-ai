@@ -201,7 +201,7 @@ public class TransactionService {
                 logger.error("Batch prediction failed, falling back to individual predictions: {}", ex.getMessage());
                 batchPredictions = new ArrayList<>();
                 for (int i = 0; i < narrations.size(); i++) {
-                    batchPredictions.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0));
+                    batchPredictions.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0));
                 }
             }
             
@@ -210,7 +210,7 @@ public class TransactionService {
                 TransactionData td = transactionDataList.get(i);
                 LocalModelInferenceService.PredictionResult prediction = 
                     (i < batchPredictions.size()) ? batchPredictions.get(i) : 
-                    new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0);
+                    new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0);
                 
                 try {
                     // Match category keywords
@@ -230,6 +230,7 @@ public class TransactionService {
                     transaction.setClosingBalance(td.closingAmt);
                     transaction.setCategoryName(categoryName);
                     transaction.setPredictedCategory(prediction.getPredictedCategory());
+                    transaction.setPredictedSubcategory(prediction.getPredictedSubcategory());
                     transaction.setPredictedTransactionType(prediction.getTransactionType());
                     transaction.setPredictedIntent(prediction.getIntent());
                     transaction.setPredictionConfidence(prediction.getConfidence());
@@ -407,13 +408,30 @@ public class TransactionService {
 
     public List<Transaction> filterTransactions(int month, int year, Long userId, String categoryName, 
                                                Double amountValue, String amountOperator, String narration) {
+        return filterTransactions(month, year, userId, categoryName, null, null, amountValue, amountOperator, narration);
+    }
+    
+    public List<Transaction> filterTransactions(int month, int year, Long userId, String categoryName,
+                                               String predictedCategory, String predictedSubcategory,
+                                               Double amountValue, String amountOperator, String narration) {
         return transactionRepository.filterTransactions(month, year, userId, categoryName, 
+                                                        predictedCategory, predictedSubcategory,
                                                         amountValue, amountOperator, narration);
     }
     
     // Overloaded method for backward compatibility
     public List<Transaction> filterTransactions(int month, int year, Long userId, String categoryName) {
-        return filterTransactions(month, year, userId, categoryName, null, null, null);
+        return filterTransactions(month, year, userId, categoryName, null, null, null, null, null);
+    }
+    
+    // Get distinct AI predicted categories
+    public List<String> getDistinctPredictedCategories() {
+        return transactionRepository.findDistinctPredictedCategories();
+    }
+    
+    // Get distinct AI predicted subcategories
+    public List<String> getDistinctPredictedSubcategories() {
+        return transactionRepository.findDistinctPredictedSubcategories();
     }
 
     public void updateCategory(Long transactionId, String categoryName) {

@@ -80,14 +80,13 @@
     },
     "intent": {
       "labels": [
-        "Purchase",
         "bill_payment",
         "purchase",
         "refund",
         "subscription",
         "transfer"
       ],
-      "num_labels": 6
+      "num_labels": 5
     }
   },
   "label_encoders": {
@@ -163,12 +162,11 @@
       "Utilities": 63
     },
     "intent": {
-      "Purchase": 0,
-      "bill_payment": 1,
-      "purchase": 2,
-      "refund": 3,
-      "subscription": 4,
-      "transfer": 5
+      "bill_payment": 0,
+      "purchase": 1,
+      "refund": 2,
+      "subscription": 3,
+      "transfer": 4
     }
   },
   "max_length": 128

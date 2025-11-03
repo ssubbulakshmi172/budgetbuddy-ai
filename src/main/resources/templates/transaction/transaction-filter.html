@@ -81,6 +81,28 @@
                             </div>
 
                             <div class="mb-3">
+                                <label for="predictedCategory" class="form-label">AI Predicted Category <span class="text-muted">(Optional)</span></label>
+                                <select name="predictedCategory" id="predictedCategory" class="form-select">
+                                    <option value="ALL" th:selected="${predictedCategory == null or predictedCategory == 'ALL'}">All Categories</option>
+                                    <option th:each="predCat : ${predictedCategories}"
+                                            th:value="${predCat}"
+                                            th:text="${predCat}"
+                                            th:selected="${predCat == predictedCategory}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="predictedSubcategory" class="form-label">AI Predicted Subcategory <span class="text-muted">(Optional)</span></label>
+                                <select name="predictedSubcategory" id="predictedSubcategory" class="form-select">
+                                    <option value="ALL" th:selected="${predictedSubcategory == null or predictedSubcategory == 'ALL'}">All Subcategories</option>
+                                    <option th:each="predSubcat : ${predictedSubcategories}"
+                                            th:value="${predSubcat}"
+                                            th:text="${predSubcat}"
+                                            th:selected="${predSubcat == predictedSubcategory}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="userId" class="form-label">User</label>
                                 <select name="userId" id="userId" class="form-select" required>
                                     <option value="" disabled selected>Please Select</option>

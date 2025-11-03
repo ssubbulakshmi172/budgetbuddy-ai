@@ -12,6 +12,7 @@ tzdata==2024.1
 matplotlib==3.8.1
 datasets==2.14.0
 mysql-connector-python==8.2.0
+kagglehub>=0.2.0
 # DistilBERT dependencies
 torch>=2.0.0
 transformers>=4.35.0

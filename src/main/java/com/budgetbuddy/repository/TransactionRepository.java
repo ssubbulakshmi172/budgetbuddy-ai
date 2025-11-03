@@ -10,6 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+    
+    // Get distinct AI predicted categories
+    @Query("SELECT DISTINCT t.predictedCategory FROM Transaction t WHERE t.predictedCategory IS NOT NULL AND t.predictedCategory != '' ORDER BY t.predictedCategory")
+    List<String> findDistinctPredictedCategories();
+    
+    // Get distinct AI predicted subcategories
+    @Query("SELECT DISTINCT t.predictedSubcategory FROM Transaction t WHERE t.predictedSubcategory IS NOT NULL AND t.predictedSubcategory != '' ORDER BY t.predictedSubcategory")
+    List<String> findDistinctPredictedSubcategories();
 
 
 
@@ -45,6 +53,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "AND (:userId IS NULL OR t.user.id = :userId) " +  // Optional userId filter
             "AND ((:categoryKeyword IS NULL OR t.categoryName = :categoryKeyword) " +
             "OR (:categoryKeyword = 'EMPTY' AND (t.categoryName IS NULL OR t.categoryName = ''))) " +
+            "AND (:predictedCategory IS NULL OR t.predictedCategory = :predictedCategory) " +  // AI predicted category filter
+            "AND (:predictedSubcategory IS NULL OR t.predictedSubcategory = :predictedSubcategory) " +  // AI predicted subcategory filter
             "AND (:amountValue IS NULL OR :amountOperator IS NULL OR " +  // Amount filter
             "(:amountOperator = 'gt' AND t.amount > :amountValue) " +
             "OR (:amountOperator = 'lt' AND t.amount < :amountValue) " +
@@ -56,6 +66,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                          @Param("year") Integer year,
                                          @Param("userId") Long userId,
                                          @Param("categoryKeyword") String categoryKeyword,
+                                         @Param("predictedCategory") String predictedCategory,
+                                         @Param("predictedSubcategory") String predictedSubcategory,
                                          @Param("amountValue") Double amountValue,
                                          @Param("amountOperator") String amountOperator,
                                          @Param("narration") String narration);

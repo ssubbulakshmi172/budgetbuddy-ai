@@ -33,6 +33,9 @@ public class Transaction {
     @Column(name = "predicted_category")
     private String predictedCategory;
 
+    @Column(name = "predicted_subcategory")
+    private String predictedSubcategory;
+
     @Column(name = "predicted_transaction_type")
     private String predictedTransactionType; // P2C, P2P, P2Business
 
@@ -137,6 +140,14 @@ public class Transaction {
 
     public void setPredictedCategory(String predictedCategory) {
         this.predictedCategory = predictedCategory;
+    }
+
+    public String getPredictedSubcategory() {
+        return predictedSubcategory;
+    }
+
+    public void setPredictedSubcategory(String predictedSubcategory) {
+        this.predictedSubcategory = predictedSubcategory;
     }
 
     public String getPredictedTransactionType() {

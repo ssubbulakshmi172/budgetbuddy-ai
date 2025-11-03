@@ -144,17 +144,19 @@ public class TransactionController {
                     transaction.setCategoryName(categoryName);
 
                     transaction.setPredictedCategory(prediction.getPredictedCategory());
+                    transaction.setPredictedSubcategory(prediction.getPredictedSubcategory());
                     transaction.setPredictedTransactionType(prediction.getTransactionType());
                     transaction.setPredictedIntent(prediction.getIntent());
                     transaction.setPredictionConfidence(prediction.getConfidence());
                     long inferenceTime = System.currentTimeMillis() - inferenceStartTime;
-                    logger.info("✅ Prediction result: category={}, type={}, intent={}, confidence={}, time={}ms", 
-                        prediction.getPredictedCategory(), prediction.getTransactionType(), 
-                        prediction.getIntent(), prediction.getConfidence(), inferenceTime);
+                    logger.info("✅ Prediction result: category={}, subcategory={}, type={}, intent={}, confidence={}, time={}ms", 
+                        prediction.getPredictedCategory(), prediction.getPredictedSubcategory(), 
+                        prediction.getTransactionType(), prediction.getIntent(), prediction.getConfidence(), inferenceTime);
                 } catch (Exception e) {
                     logger.error("❌ Failed to predict category for transaction '{}': {}", 
                         transaction.getNarration(), e.getMessage(), e);
                     transaction.setPredictedCategory("Uncategorized");
+                    transaction.setPredictedSubcategory(null);
                 }
             } else {
                 logger.warn("⚠️ Narration is null or empty, skipping categorization");
@@ -331,6 +333,9 @@ public class TransactionController {
             List<User> users = userRepository.findAll();
             model.addAttribute("users", users);
             model.addAttribute("categoriesKeywords", categoryKeywordService.getDistinctCategories());
+            // Add AI predicted distinct values
+            model.addAttribute("predictedCategories", transactionService.getDistinctPredictedCategories());
+            model.addAttribute("predictedSubcategories", transactionService.getDistinctPredictedSubcategories());
 
             model.addAttribute("transactions", new ArrayList<Transaction>());
         } catch (Exception e) {
@@ -345,22 +350,28 @@ public class TransactionController {
                                      @RequestParam(required = false) Integer year,
                                      @RequestParam(required = false) Long userId,
                                      @RequestParam(required = false) String category, // Optional category filter
+                                     @RequestParam(required = false) String predictedCategory, // AI predicted category
+                                     @RequestParam(required = false) String predictedSubcategory, // AI predicted subcategory
                                      @RequestParam(required = false) Double amountValue,
                                      @RequestParam(required = false) String amountOperator,
                                      @RequestParam(required = false) String narration,
                                      Model model,
                                      RedirectAttributes redirectAttributes) {
 
-        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}, amount: {} {}, narration: {}",
-                month, year, userId, category, amountOperator, amountValue, narration);
+        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}, predictedCategory: {}, predictedSubcategory: {}, amount: {} {}, narration: {}",
+                month, year, userId, category, predictedCategory, predictedSubcategory, amountOperator, amountValue, narration);
         List<User> users = userRepository.findAll();
         model.addAttribute("users", users);
+        model.addAttribute("predictedCategories", transactionService.getDistinctPredictedCategories());
+        model.addAttribute("predictedSubcategories", transactionService.getDistinctPredictedSubcategories());
 
         try {
             // Handle optional parameters and set default values where necessary
             int monthValue = (month != null) ? month.getValue() : -1;  // Default to -1 for unspecified month
             int yearValue = (year != null) ? year : -1;
             String categoryValue = (category != null && !category.isEmpty()) ? category : null;
+            String predictedCategoryValue = (predictedCategory != null && !predictedCategory.isEmpty() && !predictedCategory.equals("ALL")) ? predictedCategory : null;
+            String predictedSubcategoryValue = (predictedSubcategory != null && !predictedSubcategory.isEmpty() && !predictedSubcategory.equals("ALL")) ? predictedSubcategory : null;
             
             // Validate and sanitize amount operator
             String validAmountOperator = null;
@@ -381,7 +392,8 @@ public class TransactionController {
             
             // Call the service to filter transactions
             List<Transaction> transactions = transactionService.filterTransactions(
-                    monthValue, yearValue, userId, categoryValue, 
+                    monthValue, yearValue, userId, categoryValue,
+                    predictedCategoryValue, predictedSubcategoryValue,
                     amountValue, validAmountOperator, narrationValue);
 
             // Add results to the model for view rendering
@@ -390,6 +402,8 @@ public class TransactionController {
             model.addAttribute("year", year);
             model.addAttribute("userId", userId);
             model.addAttribute("categoryKeyword", category);
+            model.addAttribute("predictedCategory", predictedCategory);
+            model.addAttribute("predictedSubcategory", predictedSubcategory);
             model.addAttribute("amountValue", amountValue);
             model.addAttribute("amountOperator", amountOperator);
             model.addAttribute("narration", narration);

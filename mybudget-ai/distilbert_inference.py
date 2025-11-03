@@ -10,9 +10,11 @@ import os
 import json
 import logging
 import warnings
+import re
+import yaml
 import torch
 import torch.nn as nn
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
 from transformers import (
     DistilBertTokenizer,
     DistilBertForSequenceClassification
@@ -25,6 +27,7 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 # Configuration - use relative path from script location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "distilbert_multitask_latest")
+CATEGORIES_FILE = os.path.join(SCRIPT_DIR, "categories.yml")
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -33,7 +36,102 @@ def clean_text(text: str) -> str:
     """Clean transaction narration text"""
     if not text:
         return ""
-    return str(text).strip()
+    # Use preprocessing utils if available, preserving P2P clues
+    try:
+        from preprocessing_utils import preprocess_upi_narration
+        return preprocess_upi_narration(text, preserve_p2p_clues=True)
+    except ImportError:
+        return str(text).strip()
+
+
+def load_keyword_mappings(categories_file: str = CATEGORIES_FILE) -> List[Tuple[str, str]]:
+    """
+    Load keyword-to-category mappings from categories.yml
+    
+    Returns:
+        List of tuples: (keyword, category_name) where category_name is in format "TopCategory / Subcategory"
+    """
+    keyword_mappings = []
+    
+    if not os.path.exists(categories_file):
+        logging.warning(f"Categories file not found: {categories_file}")
+        return keyword_mappings
+    
+    try:
+        with open(categories_file, 'r', encoding='utf-8') as f:
+            categories_config = yaml.safe_load(f)
+        
+        if not categories_config or 'categories' not in categories_config:
+            return keyword_mappings
+        
+        for cat in categories_config['categories']:
+            if not isinstance(cat, dict) or 'name' not in cat:
+                continue
+            
+            top_name = cat['name']
+            
+            # Check if this category has subcategories
+            if 'subcategories' in cat and isinstance(cat['subcategories'], list):
+                for subcat in cat['subcategories']:
+                    if not isinstance(subcat, dict) or 'name' not in subcat:
+                        continue
+                    
+                    subcat_name = subcat['name']
+                    full_category_name = f"{top_name} / {subcat_name}"
+                    
+                    # Extract keywords
+                    keywords = subcat.get('keywords', [])
+                    if isinstance(keywords, list):
+                        for keyword in keywords:
+                            if keyword and isinstance(keyword, str):
+                                keyword_mappings.append((keyword.lower().strip(), full_category_name))
+            else:
+                # Top-level category without subcategories (less common)
+                full_category_name = top_name
+                keywords = cat.get('keywords', [])
+                if isinstance(keywords, list):
+                    for keyword in keywords:
+                        if keyword and isinstance(keyword, str):
+                            keyword_mappings.append((keyword.lower().strip(), full_category_name))
+        
+        logging.info(f"Loaded {len(keyword_mappings)} keyword mappings from {categories_file}")
+        
+    except Exception as e:
+        logging.warning(f"Error loading keyword mappings from {categories_file}: {e}")
+    
+    return keyword_mappings
+
+
+def match_keywords(narration: str, keyword_mappings: List[Tuple[str, str]]) -> Optional[str]:
+    """
+    Match narration against keywords and return category if match found.
+    Keyword matching takes precedence over model predictions.
+    
+    Args:
+        narration: Transaction narration text (can be original or cleaned)
+        keyword_mappings: List of (keyword, category_name) tuples
+        
+    Returns:
+        Category name if keyword match found, None otherwise
+    """
+    if not narration or not keyword_mappings:
+        return None
+    
+    narration_lower = narration.lower()
+    
+    # Check each keyword (longest matches first for better precision)
+    # Sort by keyword length (longest first) to match "mutual fund" before "fund"
+    sorted_mappings = sorted(keyword_mappings, key=lambda x: len(x[0]), reverse=True)
+    
+    for keyword, category_name in sorted_mappings:
+        # Use word boundary matching for better precision
+        # Pattern: \b matches word boundaries
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, narration_lower, re.IGNORECASE):
+            logging.info(f"✅ Keyword match found: '{keyword}' -> '{category_name}' in narration: '{narration[:100]}'")
+            return category_name
+    
+    return None
 
 
 class MultiTaskDistilBERT(nn.Module):
@@ -92,13 +190,15 @@ class MultiTaskDistilBERT(nn.Module):
 class DistilBertPredictor:
     """Predictor class for DistilBERT multi-task model"""
     
-    def __init__(self, model_path: str = MODEL_PATH):
+    def __init__(self, model_path: str = MODEL_PATH, categories_file: str = CATEGORIES_FILE):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model_path = model_path
+        self.categories_file = categories_file
         self.model = None
         self.tokenizer = None
         self.label_decoders = {}
         self.tasks = {}
+        self.keyword_mappings = load_keyword_mappings(categories_file)
         self._load_model()
     
     def _load_model(self):
@@ -189,7 +289,8 @@ class DistilBertPredictor:
     
     def predict(self, narration: str) -> Dict:
         """
-        Predict transaction_type, category, and intent for narration
+        Predict transaction_type, category, and intent for narration.
+        Keyword matching takes precedence over model predictions.
         
         Args:
             narration: Transaction description text
@@ -197,6 +298,54 @@ class DistilBertPredictor:
         Returns:
             Dictionary with predictions, confidence, and probabilities
         """
+        if not narration or not narration.strip():
+            return {
+                "transaction_type": "N/A",
+                "category": "Uncategorized",
+                "intent": "N/A",
+                "confidence": {},
+                "probabilities": {}
+            }
+        
+        # FIRST: Check keyword matching (takes precedence over model)
+        # Check both original and cleaned narration
+        keyword_matched_category = match_keywords(narration, self.keyword_mappings)
+        if not keyword_matched_category:
+            # Also try cleaned narration
+            clean_narration = clean_text(narration)
+            if clean_narration and clean_narration.lower() != narration.lower():
+                keyword_matched_category = match_keywords(clean_narration, self.keyword_mappings)
+        
+        # If keyword matched, use that category and still get model prediction for transaction_type and intent
+        if keyword_matched_category:
+            # Still get model prediction for transaction_type and intent, but override category
+            clean_narration = clean_text(narration)
+            model_results = self._predict_with_model(clean_narration) if clean_narration else {
+                "transaction_type": "N/A",
+                "intent": "N/A",
+                "confidence": {},
+                "probabilities": {}
+            }
+            
+            # Override category with keyword match, but keep model's transaction_type and intent
+            results = {
+                "transaction_type": model_results.get("transaction_type", "N/A"),
+                "category": keyword_matched_category,  # Keyword match takes precedence
+                "intent": model_results.get("intent", "N/A"),
+                "confidence": model_results.get("confidence", {}),
+                "probabilities": model_results.get("probabilities", {})
+            }
+            
+            # Add flag to indicate keyword matching was used
+            results["keyword_matched"] = True
+            results["model_category"] = model_results.get("category", "Uncategorized")  # Store model's original prediction
+            
+            logging.info(f"✅ Using keyword-matched category '{keyword_matched_category}' "
+                        f"(model would have predicted '{model_results.get('category', 'Uncategorized')}')")
+            
+            return results
+        
+        # No keyword match - use model prediction
         clean_narration = clean_text(narration)
         if not clean_narration:
             return {
@@ -207,6 +356,15 @@ class DistilBertPredictor:
                 "probabilities": {}
             }
         
+        results = self._predict_with_model(clean_narration)
+        results["keyword_matched"] = False
+        return results
+    
+    def _predict_with_model(self, clean_narration: str) -> Dict:
+        """
+        Internal method to get model predictions only.
+        Used by predict() method.
+        """
         # Tokenize
         inputs = self.tokenizer(
             clean_narration,
@@ -264,11 +422,11 @@ class DistilBertPredictor:
 _predictor_instance = None
 
 
-def get_predictor(model_path: str = MODEL_PATH) -> DistilBertPredictor:
+def get_predictor(model_path: str = MODEL_PATH, categories_file: str = CATEGORIES_FILE) -> DistilBertPredictor:
     """Get singleton predictor instance"""
     global _predictor_instance
     if _predictor_instance is None:
-        _predictor_instance = DistilBertPredictor(model_path)
+        _predictor_instance = DistilBertPredictor(model_path, categories_file)
     return _predictor_instance
 
 

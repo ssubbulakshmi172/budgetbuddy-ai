@@ -74,7 +74,7 @@ public class TransactionCategorizationService {
             System.err.println("⚠️ LocalModelInferenceService is null - cannot predict categories");
             java.util.List<LocalModelInferenceService.PredictionResult> results = new java.util.ArrayList<>();
             for (int i = 0; i < descriptions.size(); i++) {
-                results.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0));
+                results.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0));
             }
             return results;
         }
@@ -89,7 +89,7 @@ public class TransactionCategorizationService {
             e.printStackTrace();
             java.util.List<LocalModelInferenceService.PredictionResult> results = new java.util.ArrayList<>();
             for (int i = 0; i < descriptions.size(); i++) {
-                results.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0));
+                results.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0));
             }
             return results;
         }
@@ -101,12 +101,12 @@ public class TransactionCategorizationService {
      */
     public LocalModelInferenceService.PredictionResult getFullPrediction(String description) {
         if (description == null || description.trim().isEmpty()) {
-            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0);
+            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0);
         }
         
         if (localModelInferenceService == null) {
             System.err.println("⚠️ LocalModelInferenceService is null - cannot predict category");
-            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0);
+            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0);
         }
         
         try {
@@ -117,26 +117,74 @@ public class TransactionCategorizationService {
         } catch (Exception e) {
             System.err.println("⚠️ Local inference failed for '" + description + "': " + e.getMessage());
             e.printStackTrace();
-            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, 0.0);
+            return new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0);
         }
     }
 
     /**
      * Re-runs predictions for all transactions with full model predictions.
+     * Uses batch processing for MUCH faster execution (loads model once).
      */
     public void refreshPredictionsForAll() {
         List<Transaction> transactions = transactionRepository.findAll();
+        int totalTransactions = transactions.size();
+        
+        if (totalTransactions == 0) {
+            System.out.println("⚠️ No transactions found to refresh");
+            return;
+        }
+        
+        System.out.println("🔄 Starting batch prediction refresh for " + totalTransactions + " transactions...");
+        
+        // Collect all narrations that need prediction
+        java.util.List<String> narrations = new java.util.ArrayList<>();
+        java.util.List<Transaction> transactionsToUpdate = new java.util.ArrayList<>();
+        
         for (Transaction txn : transactions) {
-            if (txn.getNarration() != null && !txn.getNarration().isEmpty()) {
-                LocalModelInferenceService.PredictionResult prediction = getFullPrediction(txn.getNarration());
+            if (txn.getNarration() != null && !txn.getNarration().trim().isEmpty()) {
+                narrations.add(txn.getNarration());
+                transactionsToUpdate.add(txn);
+            }
+        }
+        
+        if (narrations.isEmpty()) {
+            System.out.println("⚠️ No transactions with narrations found to refresh");
+            return;
+        }
+        
+        System.out.println("📊 Processing " + narrations.size() + " transactions with narrations in batch...");
+        long startTime = System.currentTimeMillis();
+        
+        // Batch predict all narrations at once (MUCH FASTER - model loads once)
+        java.util.List<LocalModelInferenceService.PredictionResult> predictions = 
+            getBatchFullPredictions(narrations);
+        
+        // Update transactions with predictions
+        for (int i = 0; i < transactionsToUpdate.size(); i++) {
+            Transaction txn = transactionsToUpdate.get(i);
+            if (i < predictions.size()) {
+                LocalModelInferenceService.PredictionResult prediction = predictions.get(i);
                 txn.setPredictedCategory(prediction.getPredictedCategory());
+                txn.setPredictedSubcategory(prediction.getPredictedSubcategory());
                 txn.setPredictedTransactionType(prediction.getTransactionType());
                 txn.setPredictedIntent(prediction.getIntent());
                 txn.setPredictionConfidence(prediction.getConfidence());
+            } else {
+                // Fallback if prediction count doesn't match
+                txn.setPredictedCategory("Uncategorized");
+                txn.setPredictedSubcategory(null);
+                txn.setPredictedTransactionType(null);
+                txn.setPredictedIntent(null);
+                txn.setPredictionConfidence(0.0);
             }
         }
-        transactionRepository.saveAll(transactions);
-        System.out.println("✅ Re-predicted categories for all transactions with full model predictions.");
+        
+        // Save all updated transactions in batch
+        transactionRepository.saveAll(transactionsToUpdate);
+        
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        System.out.println("✅ Batch refreshed predictions for " + transactionsToUpdate.size() + 
+            " transactions in " + elapsedTime + "ms (" + String.format("%.2f", elapsedTime / 1000.0) + " seconds)");
     }
 
     /**
@@ -147,6 +195,7 @@ public class TransactionCategorizationService {
             if (txn.getNarration() != null && !txn.getNarration().isEmpty()) {
                 LocalModelInferenceService.PredictionResult prediction = getFullPrediction(txn.getNarration());
                 txn.setPredictedCategory(prediction.getPredictedCategory());
+                txn.setPredictedSubcategory(prediction.getPredictedSubcategory());
                 txn.setPredictedTransactionType(prediction.getTransactionType());
                 txn.setPredictedIntent(prediction.getIntent());
                 txn.setPredictionConfidence(prediction.getConfidence());

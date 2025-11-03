@@ -25,7 +25,10 @@
                     </h1>
                     <p class="lead text-muted">View and manage all your transactions</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
+                    <button type="button" id="refreshAiCategoriesBtn" class="btn btn-outline-primary btn-lg shadow-sm">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh AI Categories
+                    </button>
                     <a th:href="@{/transactions/new}" class="btn btn-primary btn-lg shadow-sm">
                         <i class="bi bi-plus-lg me-2"></i>Add New Transaction
                     </a>
@@ -118,16 +121,26 @@
                                     </div>
                                 </td>
                                 <td>
-                                <span class="badge"
+                                <span class="badge category-badge"
                                       th:class="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? 'badge-category' : 'badge-uncategorized'}"
+                                      th:attr="data-full-category=${transaction.categoryName != null ? transaction.categoryName : ''}"
                                       th:text="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? transaction.categoryName : 'Uncategorized'}">
                                     Category
+                                </span>
+                                <span class="badge bg-secondary ms-1 category-full-name" 
+                                      style="font-size: 0.65rem; cursor: help; display: none;"
+                                      th:if="${transaction.categoryName != null and transaction.categoryName.contains('/')}"
+                                      th:title="${transaction.categoryName}"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top">
+                                    <i class="bi bi-info-circle"></i>
                                 </span>
                                 </td>
                                 <!-- 🟢 Predicted Category -->
                                 <td>
-                                    <span class="badge badge-predicted"
+                                    <span class="badge badge-predicted predicted-category-badge"
                                           th:if="${transaction.predictedCategory != null and !transaction.predictedCategory.isEmpty()}"
+                                          th:attr="data-full-category=${transaction.predictedCategory}"
                                           th:text="${transaction.predictedCategory}">
                                         Predicted
                                     </span>
@@ -269,6 +282,63 @@
                 const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
                 const selectedCount = document.getElementById('selectedCount');
                 const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+                const refreshAiCategoriesBtn = document.getElementById('refreshAiCategoriesBtn');
+                
+                // Format category names to show only last part after slash
+                function formatCategoryName(badgeElement) {
+                    const fullCategory = badgeElement.getAttribute('data-full-category');
+                    if (fullCategory && fullCategory.includes('/')) {
+                        const parts = fullCategory.split('/');
+                        const lastPart = parts[parts.length - 1].trim();
+                        badgeElement.textContent = lastPart;
+                        // Show info icon if category has hierarchy
+                        const infoIcon = badgeElement.nextElementSibling;
+                        if (infoIcon && infoIcon.classList.contains('category-full-name')) {
+                            infoIcon.style.display = 'inline-block';
+                        }
+                    }
+                }
+                
+                // Apply formatting to all category badges
+                document.querySelectorAll('.category-badge, .predicted-category-badge').forEach(formatCategoryName);
+                
+                // Initialize Bootstrap tooltips
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                
+                // Handle refresh AI categories button
+                if (refreshAiCategoriesBtn) {
+                    refreshAiCategoriesBtn.addEventListener('click', function() {
+                        if (confirm('Are you sure you want to refresh all AI-redirected categories? This will re-run predictions for all transactions.')) {
+                            // Disable button and show loading state
+                            refreshAiCategoriesBtn.disabled = true;
+                            const originalHtml = refreshAiCategoriesBtn.innerHTML;
+                            refreshAiCategoriesBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
+                            
+                            // Call the refresh endpoint
+                            fetch('/transactions/refresh-categories', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Show success message and reload page
+                                alert(data.message || 'All transaction categories refreshed successfully!');
+                                window.location.reload();
+                            })
+                            .catch(error => {
+                                // Show error and re-enable button
+                                alert('Error refreshing categories: ' + error.message);
+                                refreshAiCategoriesBtn.disabled = false;
+                                refreshAiCategoriesBtn.innerHTML = originalHtml;
+                            });
+                        }
+                    });
+                }
 
                 // Handle delete transaction button clicks using event delegation
                 document.addEventListener('click', function(e) {

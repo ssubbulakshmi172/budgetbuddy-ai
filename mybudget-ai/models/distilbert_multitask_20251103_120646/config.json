@@ -1,0 +1,65 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "tasks": {
+    "transaction_type": {
+      "labels": [
+        "P2Business",
+        "P2C",
+        "P2P"
+      ],
+      "num_labels": 3
+    },
+    "category": {
+      "labels": [
+        "Charity",
+        "Dining",
+        "Entertainment",
+        "Fitness",
+        "Groceries",
+        "Healthcare",
+        "Shopping",
+        "Transport",
+        "Travel",
+        "Utilities"
+      ],
+      "num_labels": 10
+    },
+    "intent": {
+      "labels": [
+        "bill_payment",
+        "purchase",
+        "refund",
+        "subscription",
+        "transfer"
+      ],
+      "num_labels": 5
+    }
+  },
+  "label_encoders": {
+    "transaction_type": {
+      "P2Business": 0,
+      "P2C": 1,
+      "P2P": 2
+    },
+    "category": {
+      "Charity": 0,
+      "Dining": 1,
+      "Entertainment": 2,
+      "Fitness": 3,
+      "Groceries": 4,
+      "Healthcare": 5,
+      "Shopping": 6,
+      "Transport": 7,
+      "Travel": 8,
+      "Utilities": 9
+    },
+    "intent": {
+      "bill_payment": 0,
+      "purchase": 1,
+      "refund": 2,
+      "subscription": 3,
+      "transfer": 4
+    }
+  },
+  "max_length": 128
+}

@@ -11,6 +11,7 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 - **Customisable taxonomy** via YAML configuration
 - **Explainable predictions** with confidence scores and feature attributions
 - **Human-in-the-loop feedback** for continuous improvement
+- **Mobile support** with on-device PyTorch Mobile inference
 
 ### Key Features
 
@@ -19,26 +20,30 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 - AI-powered categorisation via DistilBERT multi-task model
 - **Batch predictions** for faster processing of multiple transactions
 - Automatic confidence scoring with transaction type and intent detection
+- **Separate category and subcategory fields** stored in database
+- **Filter by AI predictions** with distinct dropdown values
 
 ✅ **High Accuracy**
 - Macro F1: 0.8859 (very close to 0.90 target)
 - Weighted F1: 0.8922
 - Per-class F1 scores ranging from 0.75-0.99
+- 53 subcategories from hierarchical taxonomy
 
 ✅ **Customisable Taxonomy**
 - Edit categories via `categories.yml` (no code changes)
-- Support for 10+ categories (Dining, Groceries, Healthcare, etc.)
+- Support for 53 hierarchical subcategories
 - Keyword-based matching with ML fallback
+- Automatic dataset generation and balancing
+
+✅ **Multi-Platform**
+- **Web Application** (Spring Boot + Thymeleaf)
+- **Android Mobile App** (Jetpack Compose + PyTorch Mobile)
+- **Offline-first** mobile architecture
 
 ✅ **Explainability**
 - Confidence scores for all predictions
 - Probability distribution across all categories
 - Top keywords per class (coefficient analysis)
-
-✅ **Feedback Loop**
-- API endpoint for user corrections
-- Automatic retraining integration
-- CSV-based feedback storage
 
 ---
 
@@ -90,10 +95,14 @@ BudgetBuddy is a production-ready transaction categorisation system that:
    - Data preprocessing and evaluation
    - Report generation
 
-4. **Synthetic Data Generator** (`mybudget-ai/create_synthetic_dataset.py`)
-   - Downloads Hugging Face dataset
-   - Generates realistic UPI transactions
-   - Balanced category distribution
+4. **Dataset Maintenance** (`mybudget-ai/dataset_maintenance.py`)
+   - Generate synthetic datasets matching categories.yml
+   - Verify and auto-balance dataset coverage
+
+5. **Mobile App** (`mobile-version/`)
+   - Android app with on-device ML inference
+   - PyTorch Mobile integration
+   - Offline-first architecture
 
 ---
 
@@ -105,6 +114,8 @@ BudgetBuddy is a production-ready transaction categorisation system that:
 - **Python 3.9+** (for ML service)
 - **MySQL 8.0+** (for data persistence)
 - **Gradle 7+** (included via wrapper)
+- **Android Studio Hedgehog+** (for mobile app)
+- **JDK 17** (Corretto 17.0.13) for Android
 
 ### Python Dependencies
 
@@ -119,8 +130,7 @@ Key packages:
 - `scikit-learn` (evaluation metrics)
 - `pandas` (data processing)
 - `numpy` (numerical operations)
-- `matplotlib` (evaluation plots)
-- `datasets` (Hugging Face integration)
+- `PyYAML` (YAML configuration)
 
 ---
 
@@ -141,22 +151,7 @@ spring.datasource.username=your_username
 spring.datasource.password=your_password
 ```
 
-### 2. Generate Training Data (Optional)
-
-If you want to retrain the model:
-
-```bash
-cd mybudget-ai
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Generate synthetic dataset from Hugging Face
-python create_synthetic_dataset.py --num-samples 7000
-
-# Train DistilBERT model
-python3 train_distilbert.py
-```
-
-### 3. Setup Python Virtual Environment
+### 2. Setup Python Virtual Environment
 
 ```bash
 cd mybudget-ai
@@ -165,37 +160,42 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Train or Obtain the Model
+### 3. Generate or Obtain Training Dataset
+
+**Option A: Use Existing Dataset**
+- `transactions_distilbert.csv` - Real transaction data
+- Automatically discovers and merges all `transactions_*.csv` files
+
+**Option B: Generate Synthetic Dataset**
+```bash
+cd mybudget-ai
+source venv/bin/activate
+python3 dataset_maintenance.py generate
+# Generates transactions_synthetic.csv and transactions_maximal.csv
+```
+
+### 4. Train the Model
 
 **Note**: The pre-trained model file (`model.safetensors`, 255 MB) is excluded from the repository due to GitHub's file size limit.
 
-**Option A: Train the Model** (Recommended - ~10-30 minutes):
+**Train the Model** (~10-30 minutes):
 ```bash
 cd mybudget-ai
-source venv/bin/activate  # Activate virtual environment
+source venv/bin/activate
 python3 train_distilbert.py
 ```
 
-**Training Configuration** (`train_distilbert.py`):
-- `USE_SYNTHETIC_DATA = True` - Merges real + synthetic datasets (~10,000 samples)
-- `USE_PREPROCESSING = True` - Applies UPI text cleaning
-- `USE_6_CATEGORIES = False` - Uses 10-category taxonomy (set True for 6 categories)
-
 **What Training Does:**
-1. Loads `transactions_distilbert.csv` (real data: 3,000 rows)
-2. Loads `transactions_synthetic.csv` (synthetic data: 7,000 rows)
-3. Merges datasets with column normalization
-4. Applies UPI preprocessing (removes IDs, bank tags, etc.)
-5. Trains DistilBERT multi-task model
-6. Generates evaluation reports
-
-**Option B: Download Pre-trained Model** (if available):
-See `mybudget-ai/models/distilbert_multitask_latest/MODEL_DOWNLOAD.md` for instructions.
+1. Loads `transactions_distilbert.csv` (real data)
+2. Auto-discovers and merges all `transactions_*.csv` files
+3. Applies UPI preprocessing (removes IDs, bank tags, etc.)
+4. Trains DistilBERT multi-task model (53 subcategories)
+5. Generates evaluation reports
+6. Saves model to `models/distilbert_multitask_latest/`
 
 ### 5. Verify Inference
 
-The Spring Boot application uses local inference by default. No Flask server needed.
-For testing local inference directly:
+Test local inference directly:
 ```bash
 cd mybudget-ai
 source venv/bin/activate
@@ -207,7 +207,8 @@ python3 inference_local.py "UPI-CHILD CARE PHARMACY-VYAPAR.171813425600@HDFCBANK
 {
   "model_type": "DistilBERT",
   "transaction_type": "P2C",
-  "predicted_category": "Healthcare",
+  "predicted_category": "Personal & Lifestyle",
+  "predicted_subcategory": "Personal Health & Wellness",
   "intent": "purchase",
   "confidence": {
     "category": 0.85,
@@ -217,7 +218,7 @@ python3 inference_local.py "UPI-CHILD CARE PHARMACY-VYAPAR.171813425600@HDFCBANK
 }
 ```
 
-The Spring Boot application will automatically use local inference when started.
+**Note:** The response now includes separate `predicted_category` (top-level) and `predicted_subcategory` fields. If no subcategory exists, `predicted_subcategory` will be `null`.
 
 **Note:** Update `application.properties` to use venv Python:
 ```properties
@@ -240,25 +241,444 @@ Application will start on `http://localhost:8080`
    - Upload Excel file (.xls or .xlsx format)
    - System automatically categorises using AI
 
-2. **View Predictions:**
-   - Navigate to `http://localhost:8080/transactions/filter`
-   - Check "Predicted Category" column
+2. **View and Filter Predictions:**
+   - Navigate to `http://localhost:8080/transactions/filter-form`
+   - **Filter by AI Predicted Category** - dropdown with distinct categories from database
+   - **Filter by AI Predicted Subcategory** - dropdown with distinct subcategories
+   - Filter by month, year, user, amount, narration, and manual categories
+   - View transactions with both predicted categories and subcategories
 
 3. **Dashboard:**
    - Navigate to `http://localhost:8080/dashboard`
    - View 6-month category comparison bar chart
    - View spending analytics and recent transactions
-   - **AI-Predicted Categories Dashboard**: Shows transactions categorized by ML predictions
-   
-4. **Manual Categories Dashboard:**
-   - Navigate to `http://localhost:8080/dashboard/manual` or `http://localhost:8080/dashboard_manual`
-   - View spending based on manually assigned categories
-   - Compare AI predictions vs manual assignments
-   
-5. **Transaction Dashboard (Filtered):**
-   - Navigate to `http://localhost:8080/transactions/dashboard`
-   - Filter by year and user
-   - View category-wise month comparison
+
+---
+
+## 🤖 ML Training Pipeline
+
+### Training Flow Overview
+
+Multi-task fine-tuning of DistilBERT for transaction categorization:
+- **Task 1:** Transaction Type (P2C, P2P, P2Business)
+- **Task 2:** Category (53 subcategories from categories.yml)
+- **Task 3:** Intent (purchase, transfer, refund, subscription, bill_payment)
+
+### Complete Training Pipeline
+
+```
+Step 1: LOAD & PREPARE DATA
+├─> Load transactions_distilbert.csv (real data)
+├─> Auto-discover and merge all transactions_*.csv files
+├─> Remove duplicates
+├─> Apply UPI preprocessing
+│   └─> Clean narrations, remove IDs, normalize text
+└─> Normalize category names to match taxonomy
+
+Step 2: LOAD TAXONOMY
+├─> Try Database first (categories_keywords table)
+│   └─> Extract distinct category names
+└─> Try categories.yml (fallback/merge)
+    └─> Extract subcategories from hierarchical structure
+        └─> Create flat names: "TopCategory / Subcategory"
+        └─> Result: 53 categories
+
+Step 3: PREPARE TASKS
+├─> Task 1: Transaction Type (P2C, P2P, P2Business)
+├─> Task 2: Category (53 subcategories)
+└─> Task 3: Intent (5 classes)
+
+Step 4: SPLIT DATA
+├─> Split texts: 80% train, 20% test
+└─> Create train/test datasets
+
+Step 5: TRAIN MODEL
+├─> Load DistilBERT base model
+├─> Create multi-task heads
+├─> Train for 4 epochs
+├─> Evaluate on test set
+└─> Save best model
+
+Step 6: SAVE MODEL
+├─> Save to models/distilbert_multitask_YYYYMMDD_HHMMSS/
+└─> Copy to models/distilbert_multitask_latest/
+```
+
+### Training Configuration
+
+**File:** `mybudget-ai/train_distilbert.py`
+
+```python
+DATA_FILE = "transactions_distilbert.csv"           # Main dataset
+USE_SYNTHETIC_DATA = True                            # Auto-merge all CSV files
+USE_PREPROCESSING = True                             # Enable UPI preprocessing
+MODEL_NAME = "distilbert-base-uncased"               # Base model
+BATCH_SIZE = 16                                      # Training batch size
+EPOCHS = 4                                           # Number of epochs
+LEARNING_RATE = 2e-5                                 # Learning rate
+```
+
+### Multi-Task Learning Architecture
+
+```
+Input Text
+    ↓
+[DistilBERT Encoder] → 768-dim embeddings
+    ↓
+    ├─> [Task Head 1] → Transaction Type (3 classes)
+    ├─> [Task Head 2] → Category (53 classes)
+    └─> [Task Head 3] → Intent (5 classes)
+```
+
+**Loss Calculation:**
+- Each task has its own CrossEntropyLoss
+- Final loss = average of all task losses
+- All tasks trained jointly (multi-task learning)
+
+### Running Training
+
+```bash
+cd mybudget-ai
+source venv/bin/activate
+python3 train_distilbert.py
+```
+
+Training will:
+1. Load and prepare data (auto-discovers all CSV files)
+2. Extract taxonomy from categories.yml (53 subcategories)
+3. Train multi-task model for 4 epochs
+4. Save best model based on test F1 score
+5. Generate metrics report
+
+### Python File Usage
+
+#### 1. `train_distilbert.py` - Training Script
+
+**Purpose:** Train multi-task DistilBERT model on transaction data.
+
+**Usage:**
+```bash
+cd mybudget-ai
+source venv/bin/activate
+python3 train_distilbert.py
+```
+
+**Output:**
+- Model saved to `models/distilbert_multitask_YYYYMMDD_HHMMSS/`
+- Metrics saved to `reports/distilbert_metrics_YYYYMMDD_HHMMSS.json`
+- Logs saved to `logs/train_distilbert_YYYYMMDD_HHMMSS.log`
+
+#### 2. `inference_local.py` - Standalone Inference Script
+
+**Purpose:** Command-line inference tool, called from Java or used standalone.
+
+**Usage - Single Prediction:**
+```bash
+cd mybudget-ai
+source venv/bin/activate
+python3 inference_local.py "UPI-STARBUCKS-COFFEE-1234567890@paytm"
+```
+
+**Output (JSON to stdout):**
+```json
+{
+  "model_type": "DistilBERT",
+  "transaction_type": "P2C",
+  "predicted_category": "Dining & Restaurants",
+  "predicted_subcategory": "Dining / Restaurants",
+  "intent": "purchase",
+  "confidence": {
+    "category": 0.85,
+    "transaction_type": 0.92,
+    "intent": 0.88
+  }
+}
+```
+
+**Note:** Categories are now split into separate `predicted_category` (top-level) and `predicted_subcategory` fields. Both are stored in the database.
+
+**Java Integration:**
+```java
+ProcessBuilder pb = new ProcessBuilder(
+    "python3", 
+    "inference_local.py", 
+    transactionNarration
+);
+Process process = pb.start();
+// Read JSON from stdout
+```
+
+#### 3. `distilbert_inference.py` - Inference Module
+
+**Purpose:** Python module for programmatic inference.
+
+**Usage:**
+```python
+from distilbert_inference import get_predictor
+
+predictor = get_predictor()
+result = predictor.predict("UPI-STARBUCKS-COFFEE-1234567890@paytm")
+# Note: distilbert_inference returns full category path
+# inference_local.py splits it into category and subcategory
+print(result["category"])  # "Dining & Restaurants / Dining / Restaurants"
+```
+
+#### 4. `preprocessing_utils.py` - Preprocessing Utilities
+
+**Purpose:** Text preprocessing functions for UPI transaction narrations.
+
+**Main Function:**
+```python
+from preprocessing_utils import preprocess_upi_narration
+
+narration = "UPI-CHILD CARE PHARMACY-VYAPAR.171813425600@HDFCBANK-HDFC.COMERUPI-112425210473-MEDICAL"
+cleaned = preprocess_upi_narration(narration)
+print(cleaned)  # "CHILD CARE PHARMACY MEDICAL"
+```
+
+**Features:**
+- Removes UPI prefixes, bank tags, transaction IDs
+- Normalizes stock market transactions
+- Preserves P2P transaction clues
+- Normalizes common misspellings
+
+#### 5. `dataset_maintenance.py` - Dataset Maintenance
+
+**Purpose:** Generate and verify synthetic transaction datasets.
+
+**Command Line Usage:**
+```bash
+# Generate new dataset
+python3 dataset_maintenance.py generate
+
+# Verify and balance dataset
+python3 dataset_maintenance.py verify
+
+# Both operations
+python3 dataset_maintenance.py both
+```
+
+**Python API:**
+```python
+from dataset_maintenance import generate_dataset, verify_and_balance_dataset
+
+# Generate dataset (50 samples per category)
+generate_dataset(num_per_category=50)
+
+# Verify and balance
+result = verify_and_balance_dataset()
+```
+
+**Features:**
+- Generates synthetic transactions matching `categories.yml`
+- Verifies coverage across all 53 subcategories
+- Auto-balances dataset by generating missing samples
+- Saves to `transactions_synthetic.csv` and `transactions_maximal.csv`
+
+---
+
+## 📱 Mobile App Setup
+
+### Overview
+
+BudgetBuddy Mobile is an Android app that provides on-device transaction categorization using PyTorch Mobile. Features:
+- On-device ML inference (no internet required)
+- Manual transaction entry
+- Bulk import from Excel/CSV files
+- Category management
+- Spending analytics
+- Offline-first architecture
+
+### Prerequisites
+
+- Android Studio Hedgehog or later
+- JDK 17 (Corretto 17.0.13)
+- Android SDK (API 26+)
+- ADB (Android Debug Bridge)
+- Python 3.9+ with PyTorch (for model conversion)
+
+### Setup Steps
+
+1. **Open Project**
+   ```bash
+   cd mobile-version
+   # Open in Android Studio
+   ```
+
+2. **Generate ML Model**
+   - See "Model Setup for Mobile" section below
+   - Run: `python3 convert_to_pytorch_mobile.py`
+   - Place model file: `app/src/main/assets/distilbert_model.ptl`
+
+3. **Sync Gradle**
+   - File → Sync Project with Gradle Files
+   - Or: `./gradlew build`
+
+4. **Build and Install**
+   ```bash
+   ./gradlew assembleDebug
+   ./gradlew installDebug
+   ```
+
+### Architecture
+
+```
+┌─────────────────────────────────┐
+│  Jetpack Compose UI            │
+│  - Screens (Add, Dashboard, etc)│
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│  ViewModels                     │
+│  - State management            │
+│  - Business logic              │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│  Repository Layer               │
+│  - Room Database                │
+│  - File Import                  │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│  ML Service                     │
+│  - PyTorch Mobile               │
+│  - On-device inference          │
+└─────────────────────────────────┘
+```
+
+### Configuration
+
+**Gradle Properties** (`gradle.properties`):
+```
+org.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=512m
+org.gradle.java.home=/path/to/jdk17
+```
+
+### Viewing Logs
+
+```bash
+# View recent logs
+~/Library/Android/sdk/platform-tools/adb logcat -d | tail -20
+
+# Filter by app
+~/Library/Android/sdk/platform-tools/adb logcat -d | grep -i "BudgetBuddy" | tail -20
+
+# Real-time logs
+~/Library/Android/sdk/platform-tools/adb logcat | grep "BudgetBuddy"
+```
+
+**Common Log Tags:**
+- `BudgetBuddyApp` - Application lifecycle
+- `AddTransaction` - Transaction creation
+- `FileImporter` - Excel/CSV import
+- `PyTorchMobile` - ML model inference
+- `DATABASE_DEBUG` - Database operations
+
+---
+
+## 🔄 Model Setup for Mobile
+
+### ⚠️ Important: Model File Too Large for GitHub
+
+The PyTorch Mobile model file (`distilbert_model.ptl`) is **~255 MB**, which exceeds GitHub's 100 MB file size limit. Therefore, **the model file is NOT committed to git** and must be generated locally.
+
+### Prerequisites
+
+1. **Python 3.9+** with PyTorch installed
+2. **Trained DistilBERT model** at: `../mybudget-ai/models/distilbert_multitask_latest/`
+3. **PyTorch Mobile** library (will be installed during conversion)
+
+### Generating the Model File
+
+#### Step 1: Install Dependencies
+
+```bash
+cd mobile-version
+pip install torch torchvision torchaudio
+```
+
+#### Step 2: Run Conversion Script
+
+The conversion script will:
+- Load the trained DistilBERT model
+- Convert it to TorchScript
+- Optimize for mobile with INT8 quantization
+- Save as `.ptl` (PyTorch Lite) format
+
+```bash
+cd mobile-version
+python3 convert_to_pytorch_mobile.py
+```
+
+**Expected Output:**
+```
+🚀 PyTorch Mobile Conversion
+📥 Loading model from ../mybudget-ai/models/distilbert_multitask_latest/...
+⏳ Converting to TorchScript...
+✅ Model traced successfully
+💾 Saving optimized model to app/src/main/assets/distilbert_model.ptl...
+✅ CONVERSION COMPLETE!
+📦 Model file: app/src/main/assets/distilbert_model.ptl
+📊 Model size: ~255 MB
+```
+
+#### Step 3: Verify Model File
+
+After conversion, verify the file exists:
+```bash
+ls -lh mobile-version/app/src/main/assets/distilbert_model.ptl
+```
+
+You should see a file ~255 MB in size.
+
+### Model File Location
+
+The model file should be placed in:
+```
+mobile-version/app/src/main/assets/distilbert_model.ptl
+```
+
+**Note:** The `assets/` directory is already in git, but `distilbert_model.ptl` is ignored via `.gitignore`.
+
+### Required Files in Assets
+
+1. ✅ `distilbert_model.ptl` - Generated by conversion script (not in git)
+2. ✅ `model_info.json` - Model metadata (committed)
+3. ✅ `vocab.txt` - Vocabulary file (committed)
+
+### Troubleshooting
+
+#### Model Directory Not Found
+
+**Error:** `Model directory not found`
+
+**Solution:** Ensure the trained model exists:
+```bash
+ls ../mybudget-ai/models/distilbert_multitask_latest/
+```
+
+Should contain:
+- `config.json`
+- `model.safetensors` or `pytorch_model.bin`
+- `tokenizer.json`
+- `vocab.txt`
+
+#### Import Errors
+
+**Error:** `ImportError: No module named 'distilbert_inference'`
+
+**Solution:** The script automatically adds the project paths. If it fails:
+```bash
+export PYTHONPATH="${PYTHONPATH}:../mybudget-ai"
+python3 convert_to_pytorch_mobile.py
+```
+
+#### Quantization Backend Errors
+
+**Error:** Backend optimization fails
+
+**Solution:** The script will automatically fall back to non-quantized model. This is fine - the model will work but be slightly larger.
 
 ---
 
@@ -268,39 +688,20 @@ Application will start on `http://localhost:8080`
 
 **Dataset:**
 - **Real Data:** 3,000 samples (`transactions_distilbert.csv`)
-- **Synthetic Data:** 7,000 samples (`transactions_synthetic.csv`)
-- **Total Training Samples:** ~10,000 (with preprocessing)
+- **Synthetic Data:** 7,000+ samples (`transactions_synthetic.csv`)
+- **Total Training Samples:** ~10,000+ (with preprocessing)
 - **Test samples:** ~2,000 (20% split)
-- **Categories:** 10
-
-**New Features (v1.2.0):**
-- ✅ **Mixed Real + Synthetic Data Support:** Automatically merges both datasets
-- ✅ **UPI Preprocessing:** Removes transaction IDs, bank tags, and normalizes text
-- ✅ **Enhanced Training:** Uses both real and synthetic data for better accuracy
+- **Categories:** 53 subcategories
 
 **Metrics:**
 - **Macro F1:** 0.8859 (target: ≥0.90)
 - **Weighted F1:** 0.8922
 - **Accuracy:** 0.8898
 
-**Per-Class F1 Scores:**
-| Category | F1-Score | Precision | Recall | Support |
-|----------|----------|-----------|--------|---------|
-| Fitness | 0.9884 | 1.00 | 0.98 | 131 |
-| Healthcare | 0.9773 | 1.00 | 0.96 | 90 |
-| Utilities | 0.9749 | 0.97 | 0.98 | 99 |
-| Groceries | 0.9518 | 1.00 | 0.91 | 87 |
-| Dining | 0.9399 | 1.00 | 0.89 | 97 |
-| Charity | 0.9036 | 1.00 | 0.82 | 108 |
-| Entertainment | 0.8340 | 0.76 | 0.93 | 111 |
-| Shopping | 0.7759 | 0.69 | 0.89 | 101 |
-| Transport | 0.7654 | 0.67 | 0.90 | 69 |
-| Travel | 0.7482 | 1.00 | 0.60 | 87 |
-
 **Detailed Reports:**
 - Confusion Matrix: `mybudget-ai/reports/confusion_matrix_*.png`
-- Evaluation Metrics: `mybudget-ai/reports/evaluation_metrics_*.json`
-- Top Keywords: `mybudget-ai/reports/top_keywords_per_class_*.json`
+- Evaluation Metrics: `mybudget-ai/reports/distilbert_metrics_*.json`
+- Training Logs: `mybudget-ai/logs/train_distilbert_*.log`
 
 ---
 
@@ -312,50 +713,35 @@ The system supports **dual-source taxonomy** - categories can be managed via:
 1. **Database** (Primary): UI-based category management via `/categories`
 2. **YAML File** (Secondary/Fallback): `mybudget-ai/categories.yml`
 
-**Training Pipeline Behavior:**
-- Loads categories from **both** database and YAML file
-- Merges categories from both sources (database takes precedence)
-- If database is unavailable, falls back to YAML file
-- Duplicate categories are automatically deduplicated
-
-**Edit via Database (Recommended):**
-- Navigate to `http://localhost:8080/categories`
-- Add/edit categories through the web UI
-- Changes are immediately available in the database
-
 **Edit via YAML File:**
 Edit `mybudget-ai/categories.yml`:
 
 ```yaml
 categories:
-  - name: Groceries
-    keywords:
-      - grocery
-      - supermarket
-      - vegetables
-      - fruits
-  - name: Dining
-    keywords:
-      - restaurant
-      - cafe
-      - food
-      - starbucks
-  # Add more categories...
+  - name: Household & Pets
+    subcategories:
+      - name: Groceries / Household Supplies
+        keywords:
+          - grocery
+          - supermarket
+          - vegetables
+          - fruits
+          - milk
+          - meat
+  - name: Dining & Restaurants
+    subcategories:
+      - name: Dining / Restaurants
+        keywords:
+          - restaurant
+          - cafe
+          - food
+          - starbucks
 ```
 
 **After modification:**
-1. Regenerate dataset (if needed): `python3 create_synthetic_dataset.py --samples 3000 --output transactions_distilbert.csv`
-2. Retrain model: `python3 train_distilbert.py` (will merge DB + YAML categories, real + synthetic data)
-3. Spring Boot will automatically use the new model (local inference)
-
-**Training with Mixed Data:**
-The training pipeline now automatically:
-- Merges `transactions_distilbert.csv` (real) + `transactions_synthetic.csv` (synthetic)
-- Normalizes column names (`description` → `narration`)
-- Applies UPI preprocessing (removes IDs, bank tags)
-- Normalizes category names
-
-**Note:** The YAML file serves as both a fallback and a reference. Categories in the database will take precedence, but any additional categories in the YAML file will be included in the merged taxonomy.
+1. Regenerate dataset: `python3 dataset_maintenance.py generate`
+2. Retrain model: `python3 train_distilbert.py`
+3. Regenerate mobile model: `python3 convert_to_pytorch_mobile.py` (mobile)
 
 ### Adjust Model Parameters
 
@@ -391,6 +777,7 @@ python.inference.script=mybudget-ai/inference_local.py
 
 ### Testing Locally
 
+**Single Prediction:**
 ```bash
 cd mybudget-ai
 python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
@@ -399,216 +786,88 @@ python3 inference_local.py "UPI/PAY/1234567890/STARBUCKS/txn@paytm"
 **Example Output:**
 ```json
 {
+  "description": "UPI/PAY/1234567890/STARBUCKS/txn@paytm",
   "model_type": "DistilBERT",
   "transaction_type": "P2C",
-  "predicted_category": "Dining",
+  "predicted_category": "Dining & Food Delivery",
+  "predicted_subcategory": "Dining / Restaurants",
   "intent": "purchase",
   "confidence": {
-    "transaction_type": 0.98,
-    "category": 0.92,
-    "intent": 0.95
-  },
-  "all_probabilities": {
-    "transaction_type": {...},
-    "category": {...},
-    "intent": {...}
+    "transaction_type": 0.92,
+    "category": 0.85,
+    "intent": 0.88
   }
 }
 ```
 
+**Clearing Corporation Transaction Example:**
+```bash
+cd mybudget-ai
+python3 inference_local.py "ACH D- INDIAN CLEARING CORP-000000RZVBRM"
+```
+
+**Output:**
+```json
+{
+  "description": "ACH D- INDIAN CLEARING CORP-000000RZVBRM",
+  "model_type": "DistilBERT",
+  "transaction_type": "P2P",
+  "predicted_category": "Investments & Finance",
+  "predicted_subcategory": "Stocks & Bonds",
+  "intent": "transfer",
+  "confidence": {
+    "transaction_type": 0.3775103688240051,
+    "category": 0.02152189053595066,
+    "intent": 0.1968216747045517
+  }
+}
+```
+
+**Note:** The preprocessing preserves "INDIAN CLEARING CORP" (removes transaction codes like `-000000RZVBRM`) so keyword matching can work correctly with keywords like "indian clearing" defined in `categories.yml`.
+
 ---
 
-## 🧪 Testing & Evaluation
+## 🗄️ Dataset Maintenance
 
-### Reproduce Evaluation
+### Auto-Discovery
+
+The training script automatically discovers and loads all CSV files matching `transactions_*.csv` in the `mybudget-ai/` directory:
+- `transactions_distilbert.csv` (real data)
+- `transactions_synthetic.csv` (synthetic data)
+- `transactions_maximal.csv` (merged dataset)
+- Any other `transactions_*.csv` files you add
+
+### Generate Synthetic Dataset
 
 ```bash
 cd mybudget-ai
-python3 train_distilbert.py
+source venv/bin/activate
+python3 dataset_maintenance.py generate
 ```
 
-This will:
-1. Load taxonomy from database
-2. Load `transactions_distilbert.csv`
-3. Split into train/test (80/20)
-4. Train DistilBERT multi-task model
-5. Generate evaluation reports
-6. Save model artifacts
+This generates:
+- `transactions_synthetic.csv` - Synthetic transactions (50 per category)
+- `transactions_maximal.csv` - Complete merged dataset
 
-### View Results
+### Verify Dataset Coverage
 
 ```bash
-# JSON metrics
-cat reports/distilbert_metrics_*.json | python3 -m json.tool
-
-# Check model directory
-ls -lh models/distilbert_multitask_latest/
+python3 dataset_maintenance.py verify
 ```
 
----
+Checks:
+- Coverage of all 53 subcategories
+- Sample distribution across categories
+- Missing or low-coverage categories
+- Auto-generates missing samples
 
-## 📁 Project Structure
+### Dataset Format
 
-```
-budgetbuddy-ai/
-├── src/main/java/com/budgetbuddy/
-│   ├── controller/          # Spring Boot controllers (Dashboard, Transaction, etc.)
-│   ├── service/            # Business logic (TransactionService, etc.)
-│   ├── model/              # JPA entities (Transaction, User, CategoryKeyword)
-│   ├── repository/         # Data access layer
-│   └── config/             # Configuration (AppConfig)
-├── src/main/resources/
-│   ├── templates/          # Thymeleaf HTML templates
-│   │   ├── layouts/       # Master layout templates
-│   │   ├── transaction/   # Transaction management templates
-│   │   ├── categories/    # Category management templates
-│   │   └── dashboard_latest.html  # Main dashboard
-│   └── static/             # CSS, JS assets
-├── mybudget-ai/            # ML Service
-│   ├── inference_local.py  # Local inference script
-│   ├── train_distilbert.py # DistilBERT training pipeline
-│   ├── create_synthetic_dataset.py  # Dataset generator
-│   ├── categories.yml      # Taxonomy configuration (optional)
-│   ├── transactions_distilbert.csv  # Training data
-│   ├── models/             # Saved model files (DistilBERT)
-│   ├── reports/            # Evaluation reports (metrics JSON)
-│   └── logs/               # Training logs
-├── build.gradle            # Gradle dependencies
-├── README.md               # Main documentation
-├── DATASET.md              # Dataset documentation
-```
-
----
-
-## 🤝 Contributing
-
-### Development Setup
-
-1. **Clone repository:**
-   ```bash
-   git clone https://github.com/ssubbulakshmi172/budgetbuddy-ai.git
-   cd budgetbuddy-ai
-   ```
-
-2. **Install dependencies** (see Prerequisites section above)
-
-3. **Setup MySQL database** (see Quick Start section)
-
-4. **Generate training data** (optional - pre-trained model included):
-   ```bash
-   cd mybudget-ai
-   python create_synthetic_dataset.py --num-samples 7000
-   ```
-
-5. **Train model** (optional - pre-trained model included):
-   ```bash
-   python3 train_distilbert.py
-   ```
-
-6. **Start services** (see Quick Start section)
-
-### Code Style
-
-- **Java:** Follow Spring Boot conventions
-- **Python:** PEP 8, black formatting recommended
-- **Documentation:** Javadoc for Java, docstrings for Python
-
----
-
-## 📝 License
-
-This project is developed for educational/competition purposes. Dataset sourced from Hugging Face (`deepakjoshi1606/mock-upi-txn-data`).
-
----
-
-## 📋 Checking Logs
-
-### Application Logs
-
-**Spring Boot Logs:**
-```bash
-# View application logs
-tail -f budgetbuddy.log
-
-# Or check log directory
-ls -lh logs/
-cat logs/budgetbuddy.log
-
-# Search for errors
-grep -i error budgetbuddy.log | tail -20
-
-# Search for prediction results
-grep -i "prediction result" budgetbuddy.log | tail -20
-```
-
-**Log Location:** `budgetbuddy.log` (project root) or `logs/budgetbuddy.log`
-
-**Log Configuration** (`application.properties`):
-```properties
-logging.file.name=budgetbuddy.log
-logging.file.path=logs
-logging.level.com.budgetbuddy.controller=DEBUG
-logging.level.com.budgetbuddy.service=DEBUG
-```
-
-### Training Logs
-
-**ML Training Logs:**
-```bash
-cd mybudget-ai
-
-# View latest training log
-tail -f logs/train_distilbert_*.log
-
-# List all training logs
-ls -lh logs/
-
-# View specific log
-cat logs/train_distilbert_20251102_233036.log
-
-# Search for errors in training
-grep -i error logs/train_distilbert_*.log
-
-# Check training metrics
-grep -i "F1\|accuracy\|macro" logs/train_distilbert_*.log | tail -20
-```
-
-**Training Log Location:** `mybudget-ai/logs/train_distilbert_YYYYMMDD_HHMMSS.log`
-
-### Inference Logs
-
-**Python Inference Output:**
-```bash
-cd mybudget-ai
-
-# Test inference with verbose output
-python3 inference_local.py "UPI-ZOMATO-ZOMATO@RAPL-RATN000RAPL-500542064115-FOOD" 2>&1
-
-# Check stderr for warnings
-python3 inference_local.py "test" 2>&1 | grep -i warning
-```
-
-**Spring Boot Inference Logs:**
-- Check `budgetbuddy.log` for Java service calls
-- Look for: `"Calling categorization for narration"`
-- Look for: `"Prediction result: category=..."`
-- Check inference timing: `"time=XXXms"`
-
-### Common Log Queries
-
-```bash
-# All prediction results
-grep "Prediction result" budgetbuddy.log
-
-# Failed predictions
-grep -i "failed\|error" budgetbuddy.log | grep -i predict
-
-# Slow predictions (>1000ms)
-grep "Prediction result" budgetbuddy.log | grep -E "time=[1-9][0-9]{3,}ms"
-
-# Batch prediction statistics
-grep -i "batch\|inference" budgetbuddy.log | tail -30
-```
+CSV files should have columns:
+- `narration` - Transaction description text
+- `transaction_type` - P2C, P2P, or P2Business
+- `category` - Category name (will be mapped to taxonomy)
+- `intent` - purchase, transfer, refund, subscription, or bill_payment
 
 ---
 
@@ -640,14 +899,6 @@ cd mybudget-ai
 python3 train_distilbert.py
 ```
 
-### Batch Prediction Performance
-
-The system uses **batch predictions** for faster processing when importing multiple transactions:
-- Processes multiple transactions in a single inference call
-- Significantly faster than individual predictions
-- Falls back to individual predictions if batch fails
-- Logs batch prediction completion status
-
 ### Database Connection Issues
 
 Verify MySQL is running:
@@ -657,27 +908,127 @@ mysqladmin -u root -p status
 
 Check `application.properties` has correct credentials.
 
----
+### Mobile App Issues
 
-## 📚 Additional Documentation
-
-- [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) - Guide for creating UI demo recordings
-- [RECORDING_STEPS.md](RECORDING_STEPS.md) - Step-by-step recording instructions
-- [DATASET.md](DATASET.md) - Dataset source, preprocessing, and reproducibility
-- [mybudget-ai/requirements.txt](mybudget-ai/requirements.txt) - Python dependencies
-
-### Demo Recording
-
-Create UI demonstrations with:
+**Build Failures:**
 ```bash
-# Automatic recording with FFmpeg
-./record_with_ffmpeg.sh
-
-# Manual recording script
-./demo_ui_recording.sh
+cd mobile-version
+./gradlew clean
+./gradlew build
 ```
 
-See [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) for detailed instructions.
+**ML Predictions Fail:**
+- Verify `distilbert_model.ptl` exists in assets
+- Check Logcat for PyTorchMobile errors
+- Ensure model conversion completed successfully
+
+**View Logs:**
+```bash
+~/Library/Android/sdk/platform-tools/adb logcat | grep "BudgetBuddy"
+```
+
+### Training Issues
+
+**Out of Memory:**
+- Reduce `BATCH_SIZE` in `train_distilbert.py`
+- Use smaller dataset
+
+**Import Errors:**
+```bash
+cd mybudget-ai
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## 📁 Project Structure
+
+```
+budgetbuddy-ai/
+├── src/main/java/com/budgetbuddy/
+│   ├── controller/          # Spring Boot controllers
+│   ├── service/            # Business logic
+│   ├── model/              # JPA entities
+│   └── repository/         # Data access layer
+├── src/main/resources/
+│   ├── templates/          # Thymeleaf HTML templates
+│   └── static/             # CSS, JS assets
+├── mybudget-ai/            # ML Service
+│   ├── inference_local.py  # Local inference script
+│   ├── train_distilbert.py # Training pipeline
+│   ├── dataset_maintenance.py  # Dataset generation
+│   ├── preprocessing_utils.py  # Text preprocessing
+│   ├── distilbert_inference.py # Inference module
+│   ├── categories.yml      # Taxonomy configuration
+│   ├── transactions_*.csv  # Training datasets
+│   ├── models/             # Saved model files
+│   ├── reports/            # Evaluation reports
+│   └── logs/               # Training logs
+├── mobile-version/         # Android App
+│   ├── app/
+│   │   └── src/main/
+│   │       ├── java/       # Kotlin source
+│   │       └── assets/     # ML model files
+│   ├── convert_to_pytorch_mobile.py  # Model conversion
+│   └── build.gradle
+├── build.gradle            # Gradle dependencies
+└── README.md               # This file
+```
+
+---
+
+## 📚 Additional Resources
+
+### Key Files
+
+- **Categories:** `mybudget-ai/categories.yml`
+- **Training Script:** `mybudget-ai/train_distilbert.py`
+- **Inference:** `mybudget-ai/inference_local.py`
+- **Dataset Maintenance:** `mybudget-ai/dataset_maintenance.py`
+- **Preprocessing:** `mybudget-ai/preprocessing_utils.py`
+- **Mobile Model Conversion:** `mobile-version/convert_to_pytorch_mobile.py`
+
+### Log Locations
+
+- **Application Logs:** `budgetbuddy.log` (project root)
+- **Training Logs:** `mybudget-ai/logs/train_distilbert_*.log`
+- **Mobile Logs:** Use ADB logcat (see Mobile App Setup section)
+
+---
+
+## 🤝 Contributing
+
+### Development Setup
+
+1. **Clone repository:**
+   ```bash
+   git clone https://github.com/ssubbulakshmi172/budgetbuddy-ai.git
+   cd budgetbuddy-ai
+   ```
+
+2. **Install dependencies** (see Prerequisites section)
+
+3. **Setup MySQL database** (see Quick Start section)
+
+4. **Generate training data:**
+   ```bash
+   cd mybudget-ai
+   python3 dataset_maintenance.py generate
+   ```
+
+5. **Train model:**
+   ```bash
+   python3 train_distilbert.py
+   ```
+
+6. **Start services** (see Quick Start section)
+
+---
+
+## 📝 License
+
+This project is developed for educational/competition purposes. Dataset sourced from Hugging Face (`deepakjoshi1606/mock-upi-txn-data`).
 
 ---
 
@@ -690,9 +1041,9 @@ See [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) for detailed instructions.
 ## 🙏 Acknowledgments
 
 - **Dataset:** Hugging Face `deepakjoshi1606/mock-upi-txn-data`
-- **ML Libraries:** Scikit-learn, NumPy, Pandas, Matplotlib
+- **ML Libraries:** PyTorch, Transformers, Scikit-learn
 - **Web Framework:** Spring Boot
-- **ML Framework:** PyTorch, Transformers (DistilBERT)
+- **Mobile Framework:** Jetpack Compose, PyTorch Mobile
 - **UI:** Bootstrap 5, Chart.js, Thymeleaf
 
 ---
@@ -707,30 +1058,28 @@ See [DEMO_UI_RECORDING.md](DEMO_UI_RECORDING.md) for detailed instructions.
 - Evaluation Reports with Metrics (100%)
 - Explainability Features (100%)
 - Feedback Loop Mechanism (100%)
+- Mobile Support (100%)
 
 ⚠️ **Near Complete:**
 - Macro F1 Score: 0.8859 (target: ≥0.90) - **97% of target**
 
-📋 **For detailed compliance analysis, see:** 
-- [REQUIREMENTS_COMPLIANCE.md](REQUIREMENTS_COMPLIANCE.md) - **Requirements specification compliance**
-
 ---
 
 **Last Updated:** November 2025  
-**Version:** 1.2.0  
+**Version:** 1.3.0  
 **Status:** Production Ready
 
 ### Recent Updates
 
-#### v1.2.0 (November 2025)
-- ✨ **Mixed Real + Synthetic Data**: Automatically merges real and synthetic datasets (~10,000 samples)
-- 🔧 **UPI Preprocessing**: Removes transaction IDs, bank tags, normalizes UPI text
-- 📊 **Enhanced Training**: Improved accuracy with larger, cleaner dataset
-- 🔄 **Column Normalization**: Handles both `narration` and `description` columns
-- 📝 **Category Normalization**: Standardizes category name variations
+#### v1.3.0 (November 2025)
+- ✨ **Unified Documentation:** Merged all docs into comprehensive README
+- 🔄 **Dataset Auto-Discovery:** Automatically loads all `transactions_*.csv` files
+- 📊 **Dataset Maintenance:** Unified script for generation and verification
+- 🎯 **53 Subcategories:** Hierarchical taxonomy support
+- 🔧 **P2P Detection:** Enhanced transaction type detection with clue preservation
+- 📱 **Mobile Support:** Complete Android app with on-device inference
 
-#### v1.1.0
-- ✨ **Batch Predictions**: Faster processing for bulk transaction imports
-- 📊 **Manual Categories Dashboard**: Separate view for manually assigned categories
-- 🎥 **Demo Recording Tools**: Scripts for UI demonstration recordings
-- 🔄 **Enhanced Dashboard**: Improved analytics and category comparison views
+#### v1.2.0 (November 2025)
+- ✨ **Mixed Real + Synthetic Data**: Automatically merges real and synthetic datasets
+- 🔧 **UPI Preprocessing**: Removes transaction IDs, bank tags for better accuracy
+- 📊 **Enhanced Training**: Improved accuracy with larger, cleaner dataset
