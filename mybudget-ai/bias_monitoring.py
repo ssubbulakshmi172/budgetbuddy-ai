@@ -12,6 +12,7 @@ import json
 import sys
 import os
 import pandas as pd
+import numpy as np
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -55,7 +56,6 @@ def calculate_bias_score(metrics):
     
     # Bias score = standard deviation of F1 scores
     # Higher std dev = more bias (uneven performance)
-    import numpy as np
     bias_score = np.std(f1_scores)
     
     return bias_score
