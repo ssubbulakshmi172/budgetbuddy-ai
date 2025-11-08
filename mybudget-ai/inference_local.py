@@ -40,6 +40,9 @@ except ImportError as e:
     sys.stderr.write("Please ensure distilbert_inference.py is in the same directory\n")
     sys.exit(1)
 
+# Configuration flag: Set to True to include probability distributions in output
+INCLUDE_PROBABILITIES = False
+
 # Load model on startup (singleton pattern)
 _predictor = None
 
@@ -137,8 +140,11 @@ def predict(description: str) -> dict:
             "predicted_category": top_category,
             "intent": result.get("intent", "N/A"),
             "confidence": result.get("confidence", {})
-            # Removed "all_probabilities" - only return top prediction
         }
+        
+        # Include probability distributions if flag is enabled
+        if INCLUDE_PROBABILITIES and "probabilities" in result:
+            response["all_probabilities"] = result.get("probabilities", {})
         
         # Add subcategory if it exists
         if subcategory:
@@ -200,8 +206,11 @@ def predict_batch(descriptions: list) -> list:
                     "predicted_category": top_category,
                     "intent": result.get("intent", "N/A"),
                     "confidence": result.get("confidence", {})
-                    # Removed "all_probabilities" - only return top prediction
                 }
+                
+                # Include probability distributions if flag is enabled
+                if INCLUDE_PROBABILITIES and "probabilities" in result:
+                    batch_result["all_probabilities"] = result.get("probabilities", {})
                 
                 # Add subcategory if it exists
                 if subcategory:

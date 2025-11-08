@@ -16,8 +16,8 @@ from typing import List, Dict, Tuple
 from collections import Counter
 
 # Configuration
-TARGET_SAMPLES_PER_CATEGORY = 50
-MIN_SAMPLES_PER_CATEGORY = 20
+TARGET_SAMPLES_PER_CATEGORY = 100  # Increased for better model performance
+MIN_SAMPLES_PER_CATEGORY = 50      # Minimum threshold for sparse categories
 CATEGORIES_FILE = "categories.yml"
 SYNTHETIC_FILE = "transactions_synthetic.csv"
 MAXIMAL_FILE = "transactions_maximal.csv"
@@ -228,8 +228,19 @@ def generate_transactions(num_per_category: int = TARGET_SAMPLES_PER_CATEGORY) -
                     else:
                         intent = 'transfer'
                 else:
-                    txn_type = random.choice(transaction_types)
-                    intent = random.choice(['purchase', 'transfer'])
+                    # For other categories (like Groceries, Shopping, etc.), allow P2P if narration suggests it
+                    # Check if narration has P2P indicators (user-added remarks like "to friend", "with friends", etc.)
+                    has_p2p_remark = any(kw in narration_lower for kw in ['to ', 'from ', 'with ', 'friend', 'friends', 
+                                                                          'shared', 'split', 'lent', 'borrowed', 'gift'])
+                    
+                    if has_p2p_remark:
+                        # If narration has P2P indicators, make it P2P (e.g., "Groceries with friends")
+                        txn_type = 'P2P'
+                        intent = random.choice(['purchase', 'transfer'])
+                    else:
+                        # Otherwise, random choice (P2C, P2P, or P2Business)
+                        txn_type = random.choice(transaction_types)
+                        intent = random.choice(['purchase', 'transfer'])
                 
                 transactions.append({
                     'narration': narration,

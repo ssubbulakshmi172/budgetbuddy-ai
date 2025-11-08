@@ -49,6 +49,9 @@ mybudget-ai/models_bert/
 # Ignore old timestamped models, keep only latest
 mybudget-ai/models/*_*.pkl
 !mybudget-ai/models/*_latest.pkl
+# Ignore timestamped DistilBERT model directories (keep only distilbert_multitask_latest)
+mybudget-ai/models/distilbert_multitask_*/
+!mybudget-ai/models/distilbert_multitask_latest/
 # Large model files (exceed GitHub 100MB limit)
 *.safetensors
 mybudget-ai/models/**/*.safetensors
@@ -84,6 +87,8 @@ Thumbs.db
 *.old
 ~$*.xlsx
 ~$*.xls
+# Archive files (Spring Boot service zips)
+budgetbuddy-springboot-service-*.zip
 # Excel files
 *.xls
 *.xlsx

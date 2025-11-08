@@ -67,11 +67,12 @@ TAXONOMY_FILTER = "Taxonomy"  # Filter categories_for field
 MODEL_NAME = "distilbert-base-uncased"
 MAX_LENGTH = 128
 BATCH_SIZE = 16
-EPOCHS = 4
-LEARNING_RATE = 2e-5
-WARMUP_STEPS = 100
+EPOCHS = 8  # Increased from 4 to 8 for better convergence
+LEARNING_RATE = 1.5e-5  # Slightly lower for more stable training
+WARMUP_STEPS = 200  # Increased warmup for better convergence
 TEST_SIZE = 0.20
 RANDOM_STATE = 42
+USE_CLASS_WEIGHTS = True  # Enable class weighting for imbalanced categories
 
 # Task configuration
 TASKS = {
@@ -388,7 +389,11 @@ class MultiTaskDistilBERT(nn.Module):
             
             # Calculate loss if labels provided
             if task_labels and f'{task_name}_label' in task_labels:
-                loss_fn = nn.CrossEntropyLoss()
+                # Use class weights for category task if available
+                if task_name == 'category' and hasattr(self, 'category_class_weights'):
+                    loss_fn = nn.CrossEntropyLoss(weight=self.category_class_weights)
+                else:
+                    loss_fn = nn.CrossEntropyLoss()
                 loss = loss_fn(logits, task_labels[f'{task_name}_label'])
                 losses.append(loss)
         
@@ -435,10 +440,15 @@ def load_and_merge_datasets(real_data_file: str, synthetic_data_file: Optional[s
     datasets.append(df_real)
     loaded_files.add(os.path.abspath(real_data_file))
     
-    # Auto-discover and load all transaction CSV files in current directory
+    # Auto-discover and load ALL transaction CSV files in current directory
+    # This automatically includes: transactions_balanced.csv, transactions_mapped.csv, 
+    # transactions_maximal.csv, transactions_synthetic.csv, transactions_retails_synthetic.csv, etc.
     current_dir = os.path.dirname(os.path.abspath(real_data_file)) or '.'
-    csv_files = [f for f in os.listdir(current_dir) 
-                 if f.endswith('.csv') and f.startswith('transactions_')]
+    csv_files = sorted([f for f in os.listdir(current_dir) 
+                 if f.endswith('.csv') and f.startswith('transactions_')])
+    
+    logging.info(f"🔍 Auto-discovered {len(csv_files)} transaction CSV files: {csv_files}")
+    print(f"   🔍 Auto-discovered {len(csv_files)} transaction CSV files")
     
     for csv_file in csv_files:
         file_path = os.path.join(current_dir, csv_file)
@@ -513,11 +523,70 @@ def load_and_merge_datasets(real_data_file: str, synthetic_data_file: Optional[s
     return df_merged
 
 
+# ---------- Load User Corrections ----------
+def load_corrections(corrections_file: str = CORRECTIONS_FILE) -> Optional[pd.DataFrame]:
+    """
+    Load user corrections from CSV file.
+    
+    Expected format:
+    - narration: Transaction description
+    - category: User-corrected category
+    - predicted_category: Original AI prediction (optional)
+    - confidence: AI confidence score (optional)
+    
+    Returns:
+        DataFrame with corrections, or None if file doesn't exist
+    """
+    if not os.path.exists(corrections_file):
+        logging.info(f"💡 No corrections file found: {corrections_file} (skipping)")
+        return None
+    
+    try:
+        df = pd.read_csv(corrections_file)
+        logging.info(f"✅ Loaded {len(df)} user corrections from {corrections_file}")
+        print(f"   ✅ Loaded {len(df)} user corrections")
+        
+        # Validate required columns
+        if 'narration' not in df.columns or 'category' not in df.columns:
+            logging.warning(f"⚠️ Corrections file missing required columns (narration, category)")
+            return None
+        
+        # Clean and validate
+        df = df.dropna(subset=['narration', 'category'])
+        df = df[df['narration'].str.len() >= 5]  # Filter very short narrations
+        df = df.drop_duplicates(subset=['narration', 'category'])
+        
+        # Ensure required columns exist
+        if 'transaction_type' not in df.columns:
+            df['transaction_type'] = 'P2C'  # Default
+        if 'intent' not in df.columns:
+            df['intent'] = 'purchase'  # Default
+        
+        logging.info(f"✅ Validated: {len(df)} corrections after cleaning")
+        print(f"   ✅ Validated: {len(df)} corrections")
+        
+        return df
+        
+    except Exception as e:
+        logging.warning(f"⚠️ Failed to load corrections: {e}")
+        return None
+
+
 # ---------- Load and Prepare Data ----------
 def load_and_prepare_data(data_file: str, synthetic_file: Optional[str] = None, 
                           use_synthetic: bool = USE_SYNTHETIC_DATA,
-                          use_preprocessing: bool = USE_PREPROCESSING) -> Tuple[pd.DataFrame, Dict]:
-    """Load dataset(s) and prepare task labels with optional preprocessing"""
+                          use_preprocessing: bool = USE_PREPROCESSING,
+                          use_corrections: bool = USE_CORRECTIONS) -> Tuple[pd.DataFrame, Dict]:
+    """
+    Load dataset(s) and prepare task labels with optional preprocessing and corrections.
+    
+    Args:
+        data_file: Path to main data file
+        synthetic_file: Path to synthetic data file (legacy)
+        use_synthetic: Whether to include synthetic data
+        use_preprocessing: Whether to apply UPI preprocessing
+        use_corrections: Whether to include user corrections if available
+    """
     logging.info(f"📥 Loading data from {data_file}")
     if use_synthetic and synthetic_file:
         logging.info(f"   Will also load synthetic data from {synthetic_file}")
@@ -525,6 +594,24 @@ def load_and_prepare_data(data_file: str, synthetic_file: Optional[str] = None,
     
     # Load and merge datasets
     df = load_and_merge_datasets(data_file, synthetic_file, use_synthetic)
+    
+    # Optionally load and merge user corrections
+    if use_corrections:
+        corrections_df = load_corrections()
+        if corrections_df is not None and len(corrections_df) > 0:
+            logging.info(f"🔄 Merging {len(corrections_df)} corrections into training data...")
+            print(f"   🔄 Merging {len(corrections_df)} corrections into training data...")
+            
+            # Merge corrections with training data
+            # Corrections are user-validated, so we prioritize them
+            df = pd.concat([df, corrections_df], ignore_index=True)
+            
+            # Remove duplicates (keep corrections if both exist)
+            # If same narration appears in both, keep the one with user correction
+            df = df.drop_duplicates(subset=['narration'], keep='last')
+            
+            logging.info(f"✅ Combined dataset: {len(df)} total rows (including corrections)")
+            print(f"   ✅ Combined dataset: {len(df)} total rows")
     
     # Validate required columns
     required_cols = ['narration']
@@ -612,10 +699,19 @@ def load_and_prepare_data(data_file: str, synthetic_file: Optional[str] = None,
             
             # Use taxonomy categories as the definitive list
             taxonomy_categories = sorted(set(taxonomy_categories))
+            
+            # Filter out old top-level categories that have 0 samples (Charity, Dining, Entertainment, etc.)
+            # These are legacy categories from database that aren't in consolidated taxonomy
+            category_counts = df['category'].value_counts()
+            active_categories = [cat for cat in taxonomy_categories if cat in category_counts.index and category_counts[cat] > 0]
+            
+            # Keep only categories that exist in the dataset
+            taxonomy_categories = [cat for cat in taxonomy_categories if cat in active_categories or cat not in ['Charity', 'Dining', 'Entertainment', 'Fitness', 'Groceries', 'Healthcare', 'Shopping', 'Transport', 'Travel', 'Utilities']]
+            
             TASKS['category']['labels'] = taxonomy_categories
             TASKS['category']['num_labels'] = len(taxonomy_categories)
             
-            logging.info(f"✅ Category Taxonomy: {len(taxonomy_categories)} classes (from database/YAML)")
+            logging.info(f"✅ Category Taxonomy: {len(taxonomy_categories)} classes (filtered to active categories)")
             logging.info(f"   Categories: {taxonomy_categories}")
             
             # Create label encoder based on taxonomy
@@ -627,9 +723,9 @@ def load_and_prepare_data(data_file: str, synthetic_file: Optional[str] = None,
             # Handle any NaN values (shouldn't happen, but just in case)
             nan_mask = encoded_labels['category'].isna()
             if nan_mask.any():
-                logging.warning(f"⚠️ Found {nan_mask.sum()} NaN category labels, mapping to 'Other'")
-                other_idx = label_encoders['category'].get('Other', 0)
-                encoded_labels['category'] = encoded_labels['category'].fillna(other_idx)
+                logging.warning(f"⚠️ Found {nan_mask.sum()} NaN category labels, mapping to first category")
+                first_idx = 0
+                encoded_labels['category'] = encoded_labels['category'].fillna(first_idx)
             
             # Convert to numpy array
             encoded_labels['category'] = encoded_labels['category'].astype(int).values
@@ -844,12 +940,13 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f"🖥️  Device: {device}")
     
-    # Load data
+    # Load data (including corrections if available)
     df, label_encoders, encoded_labels, tasks_to_use = load_and_prepare_data(
         DATA_FILE, 
         synthetic_file=SYNTHETIC_DATA_FILE if USE_SYNTHETIC_DATA else None,
         use_synthetic=USE_SYNTHETIC_DATA,
-        use_preprocessing=USE_PREPROCESSING
+        use_preprocessing=USE_PREPROCESSING,
+        use_corrections=USE_CORRECTIONS
     )
     
     # Split data
@@ -897,13 +994,26 @@ def main():
     
     # Optimizer and scheduler
     print(f"\n⚙️  Setting up optimizer and scheduler...")
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.01)
     total_steps = len(train_loader) * EPOCHS
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=WARMUP_STEPS, num_training_steps=total_steps
     )
-    print(f"   ✅ Optimizer: AdamW (lr={LEARNING_RATE})")
+    print(f"   ✅ Optimizer: AdamW (lr={LEARNING_RATE}, weight_decay=0.01)")
     print(f"   ✅ Scheduler: Linear warmup ({WARMUP_STEPS} steps) → {total_steps} total steps")
+    
+    # Calculate class weights for category task if enabled
+    if USE_CLASS_WEIGHTS and 'category' in tasks_to_use:
+        from sklearn.utils.class_weight import compute_class_weight
+        category_labels = train_labels['category']
+        unique_labels = np.unique(category_labels)
+        class_weights = compute_class_weight('balanced', classes=unique_labels, y=category_labels)
+        class_weight_dict = {int(label): float(weight) for label, weight in zip(unique_labels, class_weights)}
+        logging.info(f"📊 Computed class weights for {len(class_weight_dict)} categories")
+        logging.info(f"   Weight range: {min(class_weights):.3f} - {max(class_weights):.3f}")
+        # Store in model for use in loss calculation
+        model.category_class_weights = torch.tensor([class_weight_dict.get(i, 1.0) for i in range(len(tasks_to_use['category']['labels']))]).to(device)
+        print(f"   ✅ Class weights enabled for category classification")
     
     # Training loop
     logging.info(f"\n🏋️  Starting training ({EPOCHS} epochs)...")

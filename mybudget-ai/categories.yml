@@ -1,4 +1,3 @@
-# Preprocessing configuration
 preprocessing:
   noise_words:
     - YOU ARE PAYING FOR
@@ -11,148 +10,101 @@ preprocessing:
 
 categories:
 
-  - name: Investments & Finance
+  - name: Dining & Food 
     subcategories:
-      - name: FD / Fixed Deposit
-        keywords: [fd, fixed deposit, bank deposit]
-      - name: SIP / Mutual Funds
-        keywords: [sip, mutual fund, nse, bse, fund investment]
+      - name: Dining & Food Delivery
+        keywords: [restaurant, restaurent, restraunt, restro, cafe, caffe, dine, meal, buffet, fine dining, bistro, eatery, starbucks, costa coffee, barista, ccd, cafe coffee day, tim hortons, dunkin donuts, blue bottle, third wave coffee, specialty coffee, artisanal coffee, cold brew, espresso, cappuccino, latte, americano, food, foods, food delivery, pizza, burger, coffee, cofee, swiggy, swigy, zomato, uber eats, dominos, kfc, mcdonalds, online order, takeaway, take away, take-away, chat, juice, snacks, hotel meal, tea, chai, coffee shop, bakery items, vending machine, vending, snack machine, beverage machine, convenience store, 7-eleven, circle k, corner store, kirana, general store, mini mart, street food, food cart, food truck, chaat, pani puri, bhel, pav bhaji, dosa, idli, vada pav, local vendor, street vendor, hawker, roadside]
+
+  - name: Groceries 
+    subcategories:
+      - name: Groceries & Household Supplies
+        keywords: [grocery, groceries, grocies, groc, grocerie, grosry, grosery, supermarkets, supermarket, vegetables, fruits, veggies, veg, fruit, fresh produce, produce, mart, store, milk, meat, chicken, fish, eggs, bread, rice, flour, spices, cooking oil, dairy, cheese, butter, yogurt, curd, paneer, pulses, dal, lentils, grains, cereals, snacks, biscuits, chips, beverages, juice, water, onion, potato, tomato, apple, banana, mango, orange, carrot, cabbage, spinach, okra, beans, peas]
+
+  - name: Shopping 
+    subcategories:
+      - name: Shopping & Fashion
+        keywords: [toys, amazon, flipkart, myntra, ajio, snapdeal, paytm mall, tata cliq, shopclues, lifestyle, shopperstop, mall purchase, retail, fashion, personal shopper, stylist, wardrobe consultation, shopping assistant, styling service, image consultant, fashion consultant, shopping]
+
+  - name: Investments 
+    subcategories:
       - name: Stocks & Bonds
         keywords: [stocks, shares, bonds, trading, demat, clearing corp, stock market clearing, nse clearing, bse clearing, indian clearing, securities, broker]
-      - name: Digital / Physical Gold
-        keywords: [digital gold, paytm gold, phonepe gold, sbi gold, niva gold, gold purchase]
-      - name: Bank & Investment Fees
-        keywords: [atm fee, maintenance fee, transaction charge, broker fee]
-      - name: Credit Card Payment
-        keywords: [credit card bill, visa payment, mastercard payment]
-      - name: Personal Loan
-        keywords: [personal loan emi, loan repayment, credit line]
-      - name: Housing Loan / Home Loan
-        keywords: [home loan emi, principal, interest]
-      - name: Vehicle / Auto Loan
-        keywords: [car loan emi, bike loan, auto emi]
+      - name: Investments & Savings
+        keywords: [sip, mutual fund, nse, bse, fund investment, fd, fixed deposit, bank deposit, digital gold, paytm gold, phonepe gold, sbi gold, niva gold, gold purchase]
+      - name: Loans & EMI
+        keywords: [home loan emi, principal, interest, personal loan emi, loan repayment, credit line, car loan emi, bike loan, auto emi, new car, used car, bike purchase, vehicle down payment]
+      - name: Banking & Payments
+        keywords: [credit card bill, visa payment, mastercard payment, atm fee, maintenance fee, transaction charge, broker fee, upi, neft, rtgs, imps, wire transfer, bank transfer, cheque payment, chq paid, cheque, transfer in, transfer out]
 
-
-  - name: Real Estate & Housing
+  # Group 5: Transportation (Consolidated 6 → 2)
+  - name: Transportation 
     subcategories:
-      - name: Real Estate / Housing
-        keywords: [land, plot, house, apartment, builder]
-      - name: Property Taxes & Fees
-        keywords: [stamp duty, land tax, municipal fee, council rates, escrow]
-      - name: Home Maintenance / Repairs
-        keywords: [plumber, electrician, carpenter, painting, renovation, appliance repair]
-      - name: Utilities / Household Bills
-        keywords: [electricity, water, gas, internet, mobile, broadband, utility bill]
-
-  - name: Transportation & Vehicles
-    subcategories:
-      - name: Transport / Commuting
-        keywords: [uber, ola, taxi, bus, train, metro]
-      - name: Auto Maintenance & Repair
-        keywords: [mechanic, oil change, tyre shop, car wash, detailing]
-      - name: Auto Accessories & Parking
-        keywords: [car accessories, dashcam, stereo, parking, valet]
-      - name: Fuel / Petrol / Diesel
-        keywords: [fuel, petrol, diesel, gas station]
-      - name: Parking & Toll
-        keywords: [parking fee, toll, toll plaza, parking meter]
-      - name: Vehicle Purchase
-        keywords: [new car, used car, bike purchase, vehicle down payment]
-
-  - name: Travel & Vacation
-    subcategories:
-      - name: Flights / Air Travel
-        keywords: [airline, flight, airfare, tickets]
-      - name: Hotels / Accommodation
-        keywords: [hotel, resort, airbnb, lodging, vacation rental]
-      - name: Travel Expenses (General)
-        keywords: [visa fees, travel insurance, tour, excursion, holiday trip]
-
-  - name: Dining & Food Delivery
-    subcategories:
-      - name: Dining / Restaurants
-        keywords: [restaurant, cafe, dine, meal, buffet, fine dining, bistro, eatery]
-      - name: Food Delivery / Takeaway
-        keywords: [food, foods, food delivery, pizza, burger, coffee, swiggy, zomato, uber eats, dominos, kfc, mcdonalds, online order, takeaway, take away, take-away]
+      - name: Transport & Commuting
+        keywords: [uber, ola, taxi, bus, train, metro, transport, commute, metro card, bus pass, monthly pass, travel card, smart card, opal card, oyster card, transit card, commuter pass, season ticket, auto, autorickshaw, rickshaw, tuk tuk, bike share, cycle share, ola bike, rapido, bike rental, fuel, petrol, diesel, gas station]
+      - name: Vehicle Expenses
+        keywords: [mechanic, oil change, tyre shop, car wash, detailing, car accessories, dashcam, stereo, parking, valet, parking fee, toll, toll plaza, parking meter, parking app, paytm parking, phonepe parking]
 
   - name: Personal & Lifestyle
     subcategories:
-      - name: Shopping / Fashion
-        keywords: [amazon, flipkart, myntra, ajio, snapdeal, paytm mall, tata cliq, shopclues, lifestyle, shopperstop, mall purchase, retail, fashion]
-      - name: Entertainment / Leisure
-        keywords: [movie, cinema, concert, theatre, netflix, spotify, music, game, amusement park]
-      - name: Fitness / Gym / Yoga
-        keywords: [gym, yoga, fitness, workout, trainer]
-      - name: Hobby / Craft Supplies
-        keywords: [craft store, yarn, fabric, art supplies, hobby kit, painting materials]
-      - name: Personal / Lifestyle
-        keywords: [salon, spa, personal care, grooming]
-      - name: Personal Health & Wellness
-        keywords: [massage, therapy, chiropractor, supplements, vitamins]
-      - name: Clothing & Footwear
-        keywords: [shoes, sneakers, t-shirt, jacket, tailor, laundry]
-      - name: Subscriptions / Memberships
-        keywords: [Netflix, Spotify, magazine, club, membership]
-      - name: Software & Cloud Services
-        keywords: [adobe, aws, google cloud, hosting, saas, subscription fee, zoom]
+      - name: Fitness
+        keywords: [gym, yoga, fitness, workout, trainer, personal trainer, fitness coach, pt session, training session, fitness consultation]
+      - name: Entertainment & Leisure
+        keywords: [movie, cinema, concert, theatre, netflix, spotify, music, game, amusement park, entertainment, streaming service, music streaming, video streaming, amazon prime, disney plus, hulu, hbo max, apple tv, youtube premium, paramount plus, peacock]
+      - name: Personal Care & Lifestyle
+        keywords: [salon, spa, personal care, grooming, facial, waxing, threading, eyebrow, eyelash, manicure, pedicure, nail art, hair color, hair treatment, keratin, rebonding, makeup, cosmetics, lipstick, foundation, concealer, mascara, eyeliner, eyeshadow, blush, highlighter, contour, skincare, moisturizer, serum, sunscreen, face wash, cleanser, toner, exfoliant, anti-aging, retinol, vitamin c, sephora, ulta, nykaa, mac, maybelline, loreal, lakme, colorbar, faces, kiko milano, perfume, cologne, fragrance, deodorant, body spray, massage, therapy, chiropractor, supplements, vitamins, life coach, career coach, business coach, executive coach, coaching session, personal development, self improvement, workshop, seminar, webinar, training, certification, masterclass, mentor, mentorship, advisory, shoes, sneakers, t-shirt, jacket, tailor, laundry, dry clean, dry cleaning, laundry service, wash and fold, ironing service, craft store, yarn, fabric, art supplies, hobby kit, painting materials]
+      - name: Subscriptions & Software
+        keywords: [subscription fee, auto debit, recurring charge, adobe, aws, google cloud, hosting, saas, zoom, coursera, udemy, skillshare, edx, khan academy, linkedin learning, pluralsight, codecademy, masterclass, duolingo, babbel, online course, learning platform, education subscription, xbox game pass, playstation plus, nintendo switch online, steam, epic games, gaming subscription, hobby box, loot crate, subscription box, craft box, book box, beauty box, tinder, bumble, hinge, okcupid, match.com, dating app, premium subscription, social app, app store, google play, apple app store, in-app purchase, app purchase, mobile app, app subscription, mobile game, in-game purchase, game coins, game credits, virtual currency, gems, diamonds, premium app, pro version, app upgrade]
 
-
-  - name: Education & Children
+  - name: Education 
     subcategories:
-      - name: Education / Kids
-        keywords: [school fees, tuition, coaching, books, stationery, online course]
-      - name: Childcare / Kids Activities
-        keywords: [toys, hobby classes, music classes, dance classes, extracurricular]
-      - name: Child Support / Alimony
-        keywords: [child support, alimony payment, court ordered, maintenance]
-      - name: Books & Self-Improvement
-        keywords: [audiobook, bookstore, kindle, seminar, coaching, learning material]
+      - name: Education & Children
+        keywords: [school fees, tuition, coaching, books, stationery, online course, hobby classes, music classes, dance classes, extracurricular, audiobook, bookstore, kindle, seminar, coaching, learning material]
 
   - name: Insurance & Taxes
     subcategories:
       - name: Insurance
         keywords: [life insurance, health insurance, vehicle insurance, property insurance, premium]
-      - name: Taxes / Government
-        keywords: [income tax, property tax, GST, TDS, PF]
-      - name: Legal & Administrative
-        keywords: [passport fee, visa application, stamp duty, court fee, registration]
+      - name: Taxes & Legal
+        keywords: [income tax, property tax, GST, TDS, PF, passport fee, visa application, stamp duty, court fee, registration, child support, alimony payment, court ordered, maintenance]
 
-  - name: Household & Pets
+  - name: Housing
     subcategories:
-      - name: Groceries / Household Supplies
-        keywords: [grocery, groceries, grocies, groc, grocerie, supermarkets, supermarket, vegetables, fruits, veggies, veg, fruit, fresh produce, produce, mart, store, milk, meat, chicken, fish, eggs, bread, rice, flour, spices, cooking oil, dairy, cheese, butter, yogurt, curd, paneer, pulses, dal, lentils, grains, cereals, snacks, biscuits, chips, beverages, juice, water, onion, potato, tomato, apple, banana, mango, orange, carrot, cabbage, spinach, okra, beans, peas]
-      - name: Home Appliances / Electronics
-        keywords: [TV, fridge, laptop, gadgets, electronics, repair]
-      - name: Pets
-        keywords: [pet food, vet, grooming, pet care]
-      - name: Emergency / Miscellaneous
-        keywords: [one-off, unexpected, miscellaneous]
+      - name: Utilities & Household Bills
+        keywords: [electricity, water, gas, internet, mobile, broadband, utility bill, utilities]
+      - name: Real Estate & Housing
+        keywords: [land, plot, house, apartment, builder, stamp duty, land tax, municipal fee, council rates, escrow, plumber, electrician, carpenter, painting, renovation, appliance repair]
+      - name: Household & Miscellaneous
+        keywords: [TV, fridge, laptop, gadgets, electronics, repair, pet food, vet, grooming, pet care, one-off, unexpected, miscellaneous, home cleaning, maid service, housekeeping, deep cleaning, move in cleaning, delivery fee, delivery charge, courier, parcel, shipping, errand service, task rabbit]
+
+  - name: Travel & Vacation
+    subcategories:
+      - name: Travel & Vacation
+        keywords: [airline, flight, airfare, tickets, irctc, hotel, resort, airbnb, lodging, vacation rental, visa fees, travel insurance, tour, excursion, holiday trip, ticket booking, travel]
 
   - name: Gifts & Social
     subcategories:
-      - name: Charity / Donations
+      - name: Charity & Donations
         keywords: [donation, charity, ngo, relief, fund]
       - name: Gifts & Occasions
-        keywords: [birthday gift, anniversary, wedding, flowers, jewelry, holiday gift]
-      - name: Gifts Received (Income)
-        keywords: [gift, birthday money, cash gift, inheritance]
-      - name: Business Expenses
-        keywords: [office supplies, client lunch, software license, legal fee, marketing]
-      - name: Professional Services
-        keywords: [accountant, lawyer, financial advisor, consulting fee, architect]
+        keywords: [birthday gift, anniversary, wedding, flowers, jewelry, holiday gift, gift, birthday money, cash gift, inheritance]
+      - name: Business & Professional Services
+        keywords: [office supplies, client lunch, software license, legal fee, marketing, accountant, lawyer, financial advisor, consulting fee, architect]
 
+  # Group 13: Cash Management (Consolidated 3 → 1)
   - name: Cash Management
     subcategories:
-      - name: ATM / Cash Withdrawal
-        keywords: [atm, cash withdrawal, bank teller, branch withdrawal,ATW]
-      - name: Cash Deposit
-        keywords: [cash deposit, bank deposit, teller deposit, atm deposit]
-      - name: Transfers
-        keywords: [ upi, neft, rtgs, imps, wire transfer, bank transfer, cheque payment, chq paid, cheque, transfer in, transfer out ]
+      - name: Cash Management & Transfers
+        keywords: [atm, cash withdrawal, bank teller, branch withdrawal, ATW, cash deposit, bank deposit, teller deposit, atm deposit, upi, neft, rtgs, imps, wire transfer, bank transfer, cheque payment, chq paid, cheque, transfer in, transfer out]
 
+  # Group 14: Friends & Shared Expenses (Merged 2 → 1)
   - name: Friends & Shared Expenses
     subcategories:
-      - name: Money Lent / Borrowed
-        keywords: [lend, borrowed, loan, personal loan, given to friend, borrowed from friend]
-      - name: Social / Outings
-        keywords: [dinner with friends, outing, lunch with friends, group expense, reimbursed, hangout]
+      - name: Friends & Social Expenses
+        keywords: [lend, borrowed, loan, personal loan, given to friend, borrowed from friend, dinner with friends, outing, lunch with friends, group expense, reimbursed, hangout]
+
+  # Group 15: Healthcare (Keep as-is)
+  - name: Healthcare
+    subcategories:
+      - name: Healthcare
+        keywords: [health checkup, annual checkup, medical checkup, health screening, preventive care, health exam, lab test, blood test, diagnostic test, pathology, labcorp, quest diagnostics, thyrocare, dr lal pathlabs, nutritionist, dietician, dietitian, nutrition consultation, meal planning, health app, fitness app, myfitnesspal, noom, weight watchers, health subscription, therapy, counseling, psychologist, psychiatrist, mental health, therapy session, counseling session, healthcare, medical, hospital, clinic, doctor, pharmacy, medicine, prescription, drugs, medication, medical, doctor]
+

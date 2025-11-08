@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/master}">
+
+<head>
+    <title>Financial Guidance - BudgetBuddy</title>
+    <style>
+        .nudge-card {
+            border-left: 4px solid;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nudge-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .nudge-priority-high { border-left-color: #dc3545; }
+        .nudge-priority-medium { border-left-color: #ffc107; }
+        .nudge-priority-low { border-left-color: #28a745; }
+        
+        .pattern-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+        .pattern-daily { background: #e3f2fd; color: #1976d2; }
+        .pattern-weekly { background: #f3e5f5; color: #7b1fa2; }
+        .pattern-monthly { background: #e8f5e9; color: #388e3c; }
+        
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        .trend-increasing { background: #ffebee; color: #c62828; }
+        .trend-decreasing { background: #e8f5e9; color: #2e7d32; }
+        .trend-stable { background: #f5f5f5; color: #616161; }
+        
+        .prediction-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .risk-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .risk-high { background: rgba(255,255,255,0.3); color: #fff; }
+        .risk-medium { background: rgba(255,255,255,0.2); color: #fff; }
+        .risk-low { background: rgba(255,255,255,0.1); color: #fff; }
+        
+        .spike-alert, .dip-alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .spike-alert { background: #fff3cd; border-left: 4px solid #ffc107; }
+        .dip-alert { background: #d1ecf1; border-left: 4px solid #17a2b8; }
+    </style>
+</head>
+
+<body>
+    <div layout:fragment="content">
+        <div class="container my-4">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="bi bi-compass text-primary me-2"></i>
+                        Financial Guidance
+                    </h1>
+                    <p class="text-muted">Your personalized financial journey guide</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="refreshPatterns()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh Patterns
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="generateNudges()">
+                        <i class="bi bi-bell me-2"></i>Generate Nudges
+                    </button>
+                </div>
+            </div>
+
+            <!-- Unread Nudges Alert -->
+            <div th:if="${unreadCount > 0}" class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="bi bi-bell-fill me-2"></i>
+                You have <strong th:text="${unreadCount}">0</strong> unread financial guidance notifications.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <!-- Nudges Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-bell me-2"></i>
+                                Smart Nudges & Recommendations
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${nudges.isEmpty()}" class="text-center text-muted py-4">
+                                <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+                                <p class="mt-3 mb-2">No active nudges at the moment.</p>
+                                <p class="small mb-3" th:if="${patterns.isEmpty()}">
+                                    <strong>Tip:</strong> Click "Refresh Patterns" to detect your spending patterns first, then click "Generate Nudges" to get personalized recommendations.
+                                </p>
+                                <p class="small mb-0" th:if="${!patterns.isEmpty()}">
+                                    Patterns detected! Click "Generate Nudges" to get personalized recommendations based on your spending behavior.
+                                </p>
+                            </div>
+                            <div th:each="nudge : ${nudges}" class="nudge-card card mb-3" 
+                                 th:classappend="${nudge.priority.name() == 'HIGH'} ? 'nudge-priority-high' : 
+                                                 (${nudge.priority.name() == 'MEDIUM'} ? 'nudge-priority-medium' : 'nudge-priority-low')">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-2">
+                                                <span th:text="${nudge.title}">Title</span>
+                                                <span th:if="${nudge.priority.name() == 'HIGH'}" 
+                                                      class="badge bg-danger ms-2">High Priority</span>
+                                            </h6>
+                                            <p class="card-text mb-2" th:text="${nudge.message}">Message</p>
+                                            <p class="text-muted small mb-0" th:if="${nudge.suggestion}">
+                                                <i class="bi bi-lightbulb me-1"></i>
+                                                <strong>Suggestion:</strong> <span th:text="${nudge.suggestion}"></span>
+                                            </p>
+                                            <div th:if="${nudge.relatedAmount}" class="mt-2">
+                                                <span class="badge bg-secondary">₹<span th:text="${#numbers.formatDecimal(nudge.relatedAmount, 0, 0)}">0</span></span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    th:onclick="'markAsRead(' + ${nudge.id} + ')'"
+                                                    th:if="${!nudge.isRead}">
+                                                <i class="bi bi-check"></i> Mark Read
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" 
+                                                    th:onclick="'dismissNudge(' + ${nudge.id} + ')'">
+                                                <i class="bi bi-x"></i> Dismiss
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patterns Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-diagram-3 me-2"></i>
+                                Detected Spending Patterns
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${patterns.isEmpty()}" class="text-center text-muted py-4">
+                                <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+                                <p class="mt-3">No patterns detected yet. Patterns will appear as you add more transactions.</p>
+                            </div>
+                            <div class="row" th:each="pattern : ${patterns}">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <span class="pattern-badge" 
+                                                          th:classappend="${pattern.patternType.name() == 'DAILY'} ? 'pattern-daily' : 
+                                                                          (${pattern.patternType.name() == 'WEEKLY'} ? 'pattern-weekly' : 'pattern-monthly')"
+                                                          th:text="${pattern.patternType}">DAILY</span>
+                                                    <h6 class="mb-1" th:text="${pattern.category}">Category</h6>
+                                                    <p class="text-muted small mb-0" th:if="${pattern.subcategory}" 
+                                                       th:text="${pattern.subcategory}">Subcategory</p>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="fw-bold text-primary">₹<span th:text="${#numbers.formatDecimal(pattern.averageAmount, 0, 0)}">0</span></div>
+                                                    <small class="text-muted">avg per occurrence</small>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted">
+                                                    <span th:if="${pattern.dayOfWeek}" th:text="'Every ' + ${pattern.dayOfWeek}"></span>
+                                                    <span th:if="${pattern.dayOfMonth}" th:text="'On ' + ${pattern.dayOfMonth} + 'th of month'"></span>
+                                                    <span th:if="${pattern.frequency}">
+                                                        • <span th:text="${pattern.frequency}"></span> times per period
+                                                    </span>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trends Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-graph-up me-2"></i>
+                                Spending Trends
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${trends.isEmpty()}" class="text-center text-muted py-4">
+                                <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                                <p class="mt-2 small">No significant trends detected</p>
+                            </div>
+                            <div th:each="trend : ${trends}" class="mb-3">
+                                <div class="trend-indicator"
+                                     th:classappend="${trend.direction.name() == 'INCREASING'} ? 'trend-increasing' : 
+                                                     (${trend.direction.name() == 'DECREASING'} ? 'trend-decreasing' : 'trend-stable')">
+                                    <i th:classappend="${trend.direction.name() == 'INCREASING'} ? 'bi bi-arrow-up' : 
+                                                       (${trend.direction.name() == 'DECREASING'} ? 'bi bi-arrow-down' : 'bi bi-dash')"></i>
+                                    <span th:text="${trend.category}">Category</span>
+                                    <span class="ms-auto">
+                                        ₹<span th:text="${#numbers.formatDecimal(trend.startAmount, 0, 0)}"></span> → 
+                                        ₹<span th:text="${#numbers.formatDecimal(trend.endAmount, 0, 0)}"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Unusual Activity
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${spikes.isEmpty() and dips.isEmpty()}" class="text-center text-muted py-4">
+                                <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                                <p class="mt-2 small">No unusual spikes or dips detected</p>
+                            </div>
+                            <div th:each="spike : ${spikes}" class="spike-alert">
+                                <strong th:text="${spike.category}">Category</strong>
+                                <p class="mb-0 small">
+                                    Spike in <span th:text="${spike.month}"></span>: 
+                                    ₹<span th:text="${#numbers.formatDecimal(spike.amount, 0, 0)}"></span>
+                                    (<span th:text="${#numbers.formatDecimal(spike.percentageIncrease, 1, 1)}"></span>% increase)
+                                </p>
+                            </div>
+                            <div th:each="dip : ${dips}" class="dip-alert">
+                                <strong th:text="${dip.category}">Category</strong>
+                                <p class="mb-0 small">
+                                    Dip in <span th:text="${dip.month}"></span>: 
+                                    ₹<span th:text="${#numbers.formatDecimal(dip.amount, 0, 0)}"></span>
+                                    (<span th:text="${#numbers.formatDecimal(dip.percentageDecrease, 1, 1)}"></span>% decrease)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Predictions Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <h5 class="mb-0">
+                                <i class="bi bi-crystal-ball me-2"></i>
+                                Future Spending Predictions
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${predictions.isEmpty()}" class="text-center text-muted py-4">
+                                <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+                                <p class="mt-3">No predictions available yet. Predictions will be generated based on your spending patterns.</p>
+                            </div>
+                            <div class="row" th:each="prediction : ${predictions}">
+                                <div class="col-md-4 mb-3">
+                                    <div class="prediction-card">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="mb-1" th:text="${prediction.category}">Category</h6>
+                                                <p class="small mb-0 opacity-75" th:if="${prediction.subcategory}" 
+                                                   th:text="${prediction.subcategory}">Subcategory</p>
+                                            </div>
+                                            <span class="risk-badge"
+                                                  th:classappend="${prediction.riskLevel.name() == 'HIGH'} ? 'risk-high' : 
+                                                                  (${prediction.riskLevel.name() == 'MEDIUM'} ? 'risk-medium' : 'risk-low')"
+                                                  th:text="${prediction.riskLevel}">LOW</span>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="h4 mb-1">₹<span th:text="${#numbers.formatDecimal(prediction.predictedAmount, 0, 0)}"></span></div>
+                                            <small class="opacity-75">Predicted spending</small>
+                                        </div>
+                                        <div th:if="${prediction.isOverspendingRisk}" class="mt-3">
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Overspending Risk
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function refreshPatterns() {
+            const userId = getUserId();
+            fetch('/guidance/patterns/refresh?userId=' + userId, {
+                method: 'POST'
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert('Patterns refreshed!');
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error refreshing patterns');
+            });
+        }
+
+        function generateNudges() {
+            const userId = getUserId();
+            fetch('/guidance/nudges/generate?userId=' + userId, {
+                method: 'POST'
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert('Nudges generated!');
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error generating nudges');
+            });
+        }
+
+        function markAsRead(nudgeId) {
+            fetch('/guidance/nudges/' + nudgeId + '/read', {
+                method: 'POST'
+            })
+            .then(response => response.text())
+            .then(data => {
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function dismissNudge(nudgeId) {
+            fetch('/guidance/nudges/' + nudgeId + '/dismiss', {
+                method: 'POST'
+            })
+            .then(response => response.text())
+            .then(data => {
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function getUserId() {
+            // In production, get from session/authentication
+            // For now, try to get from URL parameter or use first user
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('userId') || '1';
+        }
+    </script>
+</body>
+</html>
+
