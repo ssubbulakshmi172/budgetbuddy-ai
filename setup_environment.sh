@@ -69,6 +69,33 @@ log_step "Timestamp: $(date)"
 log_step "=========================================="
 echo ""
 
+# Ask for confirmation before proceeding
+echo "This script will set up the BudgetBuddy AI development environment:"
+echo ""
+echo "  ✓ Verify prerequisites (Java 17+, Python 3.9+, MySQL, Gradle)"
+echo "  ✓ Create Python virtual environment"
+echo "  ✓ Install Python dependencies"
+echo "  ✓ Set up MySQL database 'budgetbuddy_app'"
+echo "  ✓ Check for model files and train if missing"
+echo "  ✓ Build Spring Boot application"
+echo ""
+echo "Log file: $LOG_FILE"
+echo ""
+
+# Always prompt for user confirmation
+read -p "Do you want to proceed with the setup? [y/N]: " -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    log_warning "Setup cancelled by user"
+    echo "Setup cancelled. No changes were made."
+    exit 0
+fi
+log_step "User confirmed - proceeding with setup"
+
+echo ""
+log_step "Starting setup process..."
+echo ""
+
 # Step 1: Verify Prerequisites
 log_step "=========================================="
 log_step "STEP 1: Verifying Prerequisites"

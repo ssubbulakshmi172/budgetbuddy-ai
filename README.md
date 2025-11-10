@@ -4,7 +4,7 @@
 
 ## 🤖 CURSOR AI SETUP PROMPT
 
-**INSTRUCTION FOR CURSOR AI:** When setting up this project on a new machine, read this section and execute the setup script automatically.
+**INSTRUCTION FOR CURSOR AI:** When setting up this project on a new machine, read this section and execute the setup script. The script will prompt for user approval before proceeding.
 
 **Execute this command in the project root directory:**
 
@@ -12,7 +12,10 @@
 chmod +x setup_environment.sh && bash setup_environment.sh
 ```
 
-**Note:** The script will automatically train the model if model files are missing (takes 10-30 minutes). To skip training, run: `SKIP_TRAINING=true bash setup_environment.sh`
+**Note:** 
+- The script will **always ask for confirmation** before proceeding (press 'y' to continue, 'N' to cancel)
+- The script will automatically train the model if model files are missing (takes 10-30 minutes)
+- To skip training, run: `SKIP_TRAINING=true bash setup_environment.sh`
 
 **The setup script will automatically:**
 1. ✅ Verify all prerequisites (Java 17+, Python 3.9+, MySQL, Gradle)
@@ -26,6 +29,7 @@ chmod +x setup_environment.sh && bash setup_environment.sh
 
 **Script Features:**
 - Works from any directory (auto-detects project root)
+- **Always prompts for user confirmation** before proceeding (safety feature)
 - Handles errors gracefully with clear messages
 - Checks prerequisites before proceeding
 - Automatically trains model if files are missing (set `SKIP_TRAINING=true` to skip)
