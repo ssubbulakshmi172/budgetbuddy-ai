@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -19,6 +21,8 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class LocalModelInferenceService {
+
+    private static final Logger logger = LoggerFactory.getLogger(LocalModelInferenceService.class);
 
     @Value("${python.inference.script:mybudget-ai/inference_local.py}")
     private String inferenceScriptPath;
@@ -35,7 +39,7 @@ public class LocalModelInferenceService {
     @PostConstruct
     public void init() {
         System.out.println("✅ LocalModelInferenceService initialized");
-        System.out.println("   Python command: " + pythonCommand);
+        // Python command configuration loaded (not logged for security)
         System.out.println("   Inference script: " + inferenceScriptPath);
         System.out.println("   Timeout: " + timeoutSeconds + " seconds");
         
@@ -104,47 +108,140 @@ public class LocalModelInferenceService {
             }
             
             // Pass JSON array as single argument
+            // Use -u flag for unbuffered output (immediate stderr/stdout)
             String[] command = {
                 pythonCommand,
+                "-u",  // Unbuffered mode - ensures immediate output
                 scriptPath,
                 jsonArray.toString()
             };
             
             ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(false);
+            pb.redirectErrorStream(false);  // Keep stderr separate from stdout
             pb.directory(new java.io.File(projectRoot));
             
+            // Start Python process (command details not logged for security)
             Process process = pb.start();
+            logger.info("✅ Python process started. PID: {} (processing {} transactions)", process.pid(), descriptions.size());
             
-            // Read stdout
+            // Read stdout in separate thread (non-blocking)
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.trim().startsWith("[") || line.trim().startsWith("{")) {
-                        output.append(line);
-                    }
-                }
-            }
-            
-            // Read stderr in separate thread
-            StringBuilder errorOutput = new StringBuilder();
-            Thread errorReaderThread = new Thread(() -> {
-                try (BufferedReader errorReader = new BufferedReader(
-                        new InputStreamReader(process.getErrorStream()))) {
+            Thread stdoutReaderThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
                     String line;
-                    while ((line = errorReader.readLine()) != null) {
-                        errorOutput.append(line).append("\n");
+                    while ((line = reader.readLine()) != null) {
+                        if (line.trim().startsWith("[") || line.trim().startsWith("{")) {
+                            output.append(line);
+                        }
                     }
                 } catch (Exception e) {
-                    // Ignore
+                    logger.debug("Error reading Python stdout: {}", e.getMessage());
                 }
             });
+            stdoutReaderThread.setDaemon(true);
+            stdoutReaderThread.start();
+            logger.info("Started Python stdout reader thread");
+            
+            // Read stderr in separate thread (includes progress messages)
+            StringBuilder errorOutput = new StringBuilder();
+            Thread errorReaderThread = new Thread(() -> {
+                try {
+                    logger.info("Python stderr reader thread started, waiting for output...");
+                    java.io.InputStream errorStream = process.getErrorStream();
+                    logger.info("Error stream obtained: {}", errorStream != null);
+                    BufferedReader errorReader = new BufferedReader(
+                            new InputStreamReader(errorStream));
+                    String line;
+                    int lineCount = 0;
+                    boolean firstOutput = true;
+                    long lastOutputTime = System.currentTimeMillis();
+                    logger.info("Starting to read from Python stderr (readLine will block until data available)...");
+                    while ((line = errorReader.readLine()) != null) {
+                        lastOutputTime = System.currentTimeMillis();
+                        // Skip lines containing command details
+                        if (line.contains("Command:") || (line.contains("python") && line.contains("-u") && line.contains("/"))) {
+                            continue;  // Skip command lines
+                        }
+                        
+                        lineCount++;
+                        errorOutput.append(line).append("\n");
+                        
+                        // Always log first few lines to see if Python is outputting
+                        if (firstOutput && lineCount <= 10) {
+                            logger.info("Python[{}]: {}", lineCount, line);
+                            if (lineCount >= 10) {
+                                firstOutput = false;
+                            }
+                        }
+                        
+                        // Log important progress messages
+                        if (line.contains("🚀") || line.contains("📝") || line.contains("✅") || 
+                            line.contains("📦") || line.contains("🔄") || line.contains("📋") ||
+                            line.contains("Batch") || line.contains("progress") || 
+                            line.contains("Step") || line.contains("chunk") ||
+                            line.contains("DistilBERT") || line.contains("YAML") ||
+                            line.contains("keyword") || line.contains("ML prediction") ||
+                            line.contains("Starting") || line.contains("Processing") ||
+                            line.contains("complete") || line.contains("Tokenizing") ||
+                            line.contains("Python inference script") || line.contains("Arguments received") ||
+                            line.contains("Script path") || line.contains("Working dir")) {
+                            logger.info("Python: {}", line);
+                        }
+                    }
+                    if (lineCount > 0) {
+                        logger.info("Python stderr reader finished. Total lines: {}", lineCount);
+                    } else {
+                        logger.warn("⚠️ Python stderr reader finished with NO output (0 lines)");
+                    }
+                    errorReader.close();
+                } catch (Exception e) {
+                    logger.error("Error reading Python stderr: {}", e.getMessage(), e);
+                }
+            });
+            errorReaderThread.setDaemon(true);
+            logger.info("About to start Python stderr reader thread...");
             errorReaderThread.start();
+            logger.info("Started Python stderr reader thread");
+            
+            // Check if process is alive immediately
+            boolean isAlive = process.isAlive();
+            logger.info("Process isAlive: {}, exitValue check...", isAlive);
+            try {
+                int exitValue = process.exitValue();
+                logger.warn("⚠️ Process already exited with code: {}", exitValue);
+            } catch (IllegalThreadStateException e) {
+                logger.info("✅ Process is running (hasn't exited yet)");
+            }
+            
+            // Monitor process and stderr output
+            Thread monitorThread = new Thread(() -> {
+                try {
+                    int checkCount = 0;
+                    while (process.isAlive() && checkCount < 60) { // Check for up to 60 seconds
+                        Thread.sleep(1000); // Check every second
+                        checkCount++;
+                        if (checkCount % 5 == 0) {
+                            logger.info("⏳ Python process still running... ({}s elapsed, PID: {})", checkCount, process.pid());
+                        }
+                    }
+                    if (process.isAlive()) {
+                        logger.warn("⚠️ Python process still running after 60s, continuing to wait...");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            monitorThread.setDaemon(true);
+            monitorThread.start();
+            
+            // Give stderr reader a moment to start, then check for initial output
+            Thread.sleep(500);
+            logger.info("Checking for Python output after 500ms...");
             
             // Wait with timeout (allow more time for batch processing)
             int batchTimeout = timeoutSeconds * Math.max(2, descriptions.size() / 10);
+            logger.info("⏳ Waiting for Python process to complete (timeout: {}s)...", batchTimeout);
             boolean finished = process.waitFor(batchTimeout, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -168,6 +265,8 @@ public class LocalModelInferenceService {
                     String subcategory = jsonResult.optString("predicted_subcategory", null);
                     String transactionType = jsonResult.optString("transaction_type", null);
                     String intent = jsonResult.optString("intent", null);
+                    String reason = jsonResult.optString("reason", "ml_prediction");
+                    boolean keywordMatched = jsonResult.optBoolean("keyword_matched", false);
                     double confidence = 0.0;
                     
                     if (jsonResult.has("confidence")) {
@@ -186,18 +285,18 @@ public class LocalModelInferenceService {
                         }
                     }
                     
-                    results.add(new PredictionResult(category, subcategory, transactionType, intent, confidence));
+                    results.add(new PredictionResult(category, subcategory, transactionType, intent, confidence, reason, keywordMatched));
                 }
             } else {
                 // Fallback: create Uncategorized results
                 for (int i = 0; i < descriptions.size(); i++) {
-                    results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
+                    results.add(new PredictionResult("Uncategorized", null, null, null, 0.0, "error", false));
                 }
             }
             
             // Ensure we return same number of results as input
             while (results.size() < descriptions.size()) {
-                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
+                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0, "error", false));
             }
             
             return results;
@@ -208,7 +307,7 @@ public class LocalModelInferenceService {
             // Return Uncategorized for all
             java.util.List<PredictionResult> results = new java.util.ArrayList<>();
             for (int i = 0; i < descriptions.size(); i++) {
-                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0));
+                results.add(new PredictionResult("Uncategorized", null, null, null, 0.0, "error", false));
             }
             return results;
         }
@@ -222,7 +321,7 @@ public class LocalModelInferenceService {
      */
     public PredictionResult predictFull(String description) {
         if (description == null || description.trim().isEmpty()) {
-            return new PredictionResult("Uncategorized", null, null, null, 0.0);
+            return new PredictionResult("Uncategorized", null, null, null, 0.0, "empty_input", false);
         }
 
         try {
@@ -246,6 +345,7 @@ public class LocalModelInferenceService {
             
             String[] command = {
                 pythonCommand,
+                "-u",  // Unbuffered mode - ensures immediate output
                 scriptPath,
                 escapedDescription
             };
@@ -305,9 +405,15 @@ public class LocalModelInferenceService {
 
             int exitCode = process.exitValue();
             
-            // Log stderr if there's content (for debugging)
+            // Log stderr if there's content (for debugging) - filter out command details
             if (errorOutput.length() > 0) {
-                System.out.println("Python stderr: " + errorOutput.toString());
+                String filteredError = errorOutput.toString()
+                    .replaceAll("Command:.*\\n", "")  // Remove command lines
+                    .replaceAll("python.*-u.*\\n", "")  // Remove python command lines
+                    .replaceAll("/Users/.*?/", "***/");  // Sanitize paths
+                if (!filteredError.trim().isEmpty()) {
+                    System.out.println("Python stderr: " + filteredError);
+                }
             }
 
             // Parse JSON output first - even if exit code is non-zero, JSON might be valid
@@ -345,7 +451,14 @@ public class LocalModelInferenceService {
                 // Exit code is non-zero AND we don't have valid JSON - this is an error
                 String errorMsg = "Inference script exited with code: " + exitCode;
                 if (errorOutput.length() > 0) {
-                    errorMsg += "\nPython error output: " + errorOutput.toString();
+                    // Filter out command details from error output
+                    String filteredError = errorOutput.toString()
+                        .replaceAll("Command:.*\\n", "")
+                        .replaceAll("python.*-u.*\\n", "")
+                        .replaceAll("/Users/.*?/", "***/");
+                    if (!filteredError.trim().isEmpty()) {
+                        errorMsg += "\nPython error output: " + filteredError;
+                    }
                 }
                 if (output.length() > 0) {
                     errorMsg += "\nPython stdout: " + output.toString();
@@ -355,12 +468,22 @@ public class LocalModelInferenceService {
                 throw new RuntimeException(errorMsg);
             } else if (jsonOutput.isEmpty()) {
                 // Exit code is 0 but no output - also an error
-                System.err.println("⚠️ Empty output from inference script. Error output: " + errorOutput.toString());
+                // Filter command details from error output
+                String filteredError = errorOutput.toString()
+                    .replaceAll("Command:.*\\n", "")
+                    .replaceAll("python.*-u.*\\n", "")
+                    .replaceAll("/Users/.*?/", "***/");
+                System.err.println("⚠️ Empty output from inference script. Error output: " + filteredError);
                 throw new RuntimeException("Empty output from inference script");
             } else if (jsonResponse == null) {
                 // We have output but couldn't parse it
                 System.err.println("⚠️ No JSON found in output: " + jsonOutput);
-                System.err.println("Error output: " + errorOutput.toString());
+                // Filter command details from error output
+                String filteredError = errorOutput.toString()
+                    .replaceAll("Command:.*\\n", "")
+                    .replaceAll("python.*-u.*\\n", "")
+                    .replaceAll("/Users/.*?/", "***/");
+                System.err.println("Error output: " + filteredError);
                 throw new RuntimeException("No JSON found in inference output");
             }
 
@@ -374,6 +497,8 @@ public class LocalModelInferenceService {
             String subcategory = jsonResponse.optString("predicted_subcategory", null);
             String transactionType = jsonResponse.optString("transaction_type", null);
             String intent = jsonResponse.optString("intent", null);
+            String reason = jsonResponse.optString("reason", "ml_prediction");
+            boolean keywordMatched = jsonResponse.optBoolean("keyword_matched", false);
             double confidence = 0.0;
 
             if (jsonResponse.has("confidence")) {
@@ -388,18 +513,18 @@ public class LocalModelInferenceService {
                 }
             }
 
-            return new PredictionResult(category, subcategory, transactionType, intent, confidence);
+            return new PredictionResult(category, subcategory, transactionType, intent, confidence, reason, keywordMatched);
 
         } catch (Exception e) {
-            System.err.println("⚠️ Error in local inference for '" + description + "': " + e.getMessage());
+            System.err.println("⚠️ Error in local inference: " + e.getMessage());
             System.err.println("Exception type: " + e.getClass().getSimpleName());
             e.printStackTrace();
-            return new PredictionResult("Uncategorized", null, null, null, 0.0);
+            return new PredictionResult("Uncategorized", null, null, null, 0.0, "error", false);
         }
     }
 
     /**
-     * Result class for prediction output
+     * Result class for prediction output with calibration and reason
      */
     public static class PredictionResult {
         private final String predictedCategory;
@@ -407,14 +532,19 @@ public class LocalModelInferenceService {
         private final String transactionType;
         private final String intent;
         private final double confidence;
+        private final String reason;
+        private final boolean keywordMatched;
 
         public PredictionResult(String predictedCategory, String predictedSubcategory, 
-                               String transactionType, String intent, double confidence) {
+                               String transactionType, String intent, double confidence,
+                               String reason, boolean keywordMatched) {
             this.predictedCategory = predictedCategory;
             this.predictedSubcategory = predictedSubcategory;
             this.transactionType = transactionType;
             this.intent = intent;
             this.confidence = confidence;
+            this.reason = reason != null ? reason : "ml_prediction";
+            this.keywordMatched = keywordMatched;
         }
 
         public String getPredictedCategory() {
@@ -435,6 +565,14 @@ public class LocalModelInferenceService {
 
         public double getConfidence() {
             return confidence;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public boolean isKeywordMatched() {
+            return keywordMatched;
         }
     }
 }

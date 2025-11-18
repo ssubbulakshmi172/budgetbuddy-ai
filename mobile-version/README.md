@@ -15,23 +15,36 @@ BudgetBuddy Mobile is an Android app that provides on-device transaction categor
 
 ✅ **On-Device ML Inference**
 - Uses PyTorch Mobile for category prediction
+- DistilBERT multi-task model (category, transaction type, intent)
 - No internet connection required
 - Real-time predictions as you type
+- User corrections support (stored locally)
 
 ✅ **Transaction Management**
 - Manual transaction entry
 - Bulk import from Excel/CSV files
 - Category assignment and editing
+- Filter and search transactions
+- Transaction history view
 
 ✅ **Offline-First**
 - All data stored locally (Room Database)
 - No network dependencies
 - Works completely offline
+- Local ML inference (no API calls)
 
 ✅ **Category Management**
 - View and manage transaction categories
-- Custom category keywords
+- Custom category keywords (from categories.yml)
 - ML-powered automatic categorization
+- Keyword matching fallback
+- User correction support
+
+✅ **Financial Guidance** (Planned)
+- Spending pattern detection
+- Category-wise spending analysis
+- Trend visualization
+- Budget tracking
 
 ## 🚀 Quick Start
 
@@ -42,6 +55,7 @@ BudgetBuddy Mobile is an Android app that provides on-device transaction categor
 - Android SDK (API 26+)
 - ADB (Android Debug Bridge)
 - Python 3.9+ (for model conversion)
+- **For Apple Silicon Macs**: Use virtual environment with ARM64 PyTorch (see Model Setup below)
 
 ### Setup Steps
 
@@ -51,10 +65,39 @@ BudgetBuddy Mobile is an Android app that provides on-device transaction categor
    # Open in Android Studio
    ```
 
-2. **Generate ML Model**
-   - See `MODEL_SETUP.md` for detailed instructions
-   - Run: `python3 convert_to_pytorch_mobile.py`
-   - Place model file: `app/src/main/assets/distilbert_model.ptl`
+2. **Generate ML Model** (Using Virtual Environment - Recommended)
+   
+   **Option A: Using Helper Script (Easiest)**
+   ```bash
+   cd mobile-version
+   ./convert_model.sh
+   ```
+   This script automatically:
+   - Creates a virtual environment (`venv`)
+   - Installs ARM64-compatible PyTorch
+   - Converts the model to `.ptl` format
+   - Places it in `app/src/main/assets/distilbert_model.ptl`
+   
+   **Option B: Manual Setup**
+   ```bash
+   cd mobile-version
+   
+   # Create virtual environment
+   python3 -m venv venv
+   source venv/bin/activate
+   
+   # Install dependencies
+   pip install --upgrade pip setuptools wheel
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+   pip install pyyaml transformers safetensors
+   
+   # Convert model
+   python3 convert_to_pytorch_mobile.py
+   ```
+   
+   **Note:** Using a virtual environment ensures you have the correct ARM64 PyTorch for Apple Silicon Macs. The `.ptl` file is architecture-agnostic and works on all Android devices.
+   
+   **See also:** `MODEL_SETUP_INSTRUCTIONS.md` for detailed information.
 
 3. **Sync Gradle**
    - File → Sync Project with Gradle Files
@@ -205,9 +248,22 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
    - Check database initialization
 
 2. **ML Predictions Fail:**
-   - Verify `distilbert_model.ptl` exists in assets
+   - Verify `distilbert_model.ptl` exists in assets (should be ~256 MB)
    - Check Logcat for PyTorchMobile errors
-   - See [MODEL_SETUP.md](MODEL_SETUP.md)
+   - See [MODEL_SETUP_INSTRUCTIONS.md](MODEL_SETUP_INSTRUCTIONS.md)
+   - **Architecture Issues**: If conversion fails with architecture errors, use the virtual environment setup (see Model Setup section)
+
+3. **Model Conversion Fails:**
+   - **Architecture Mismatch (x86_64 vs arm64)**: Use virtual environment:
+     ```bash
+     cd mobile-version
+     python3 -m venv venv
+     source venv/bin/activate
+     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+     python3 convert_to_pytorch_mobile.py
+     ```
+   - See `MODEL_SETUP_INSTRUCTIONS.md` for architecture details
+   - See `convert_model.sh` for automated setup script
 
 3. **File Import Fails:**
    - Check file format (XLSX/XLS/CSV)
@@ -219,7 +275,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 📚 Documentation
 
 - **[SETUP_AND_DEBUG.md](SETUP_AND_DEBUG.md)** - Complete setup and debugging guide
-- **[MODEL_SETUP.md](MODEL_SETUP.md)** - ML model conversion and setup
+- **[MODEL_SETUP_INSTRUCTIONS.md](MODEL_SETUP_INSTRUCTIONS.md)** - ML model conversion and setup (includes architecture info)
+- **[convert_model.sh](convert_model.sh)** - Automated model conversion script
+- **[PREDICTION_COMPARISON.md](PREDICTION_COMPARISON.md)** - Python vs Mobile prediction logic comparison
+- **[PREDICTION_FIXES_SUMMARY.md](PREDICTION_FIXES_SUMMARY.md)** - Prediction fixes implementation summary
+- **[MODELS_SUMMARY.md](MODELS_SUMMARY.md)** - Data models and database schema documentation
+- **[FEATURE_VALIDATION.md](FEATURE_VALIDATION.md)** - Feature comparison with Spring Boot app
+- **[COMMANDS.md](COMMANDS.md)** - Useful commands reference
 
 ## 🔗 Related Projects
 
@@ -233,6 +295,12 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - ✅ Offline-first architecture
 - ✅ Real-time category predictions
 - ✅ Room database for local storage
+- ✅ **Virtual environment setup for model conversion** (ARM64 support)
+- ✅ **Automated model conversion script** (`convert_model.sh`)
+- ✅ **Text preprocessing** matching Python model behavior
+- ✅ **Keyword matching** with 624+ keywords loaded from `categories.yml`
+- ✅ **Subcategory extraction** from category strings
+- ✅ **Full confidence scores** for all prediction tasks
 
 ---
 

@@ -65,11 +65,18 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Batch Processing**: Efficiently handles multiple transactions in a single inference call
 - **Confidence Scoring**: Provides probability distributions and confidence scores for all predictions
 
-### Financial Guidance System
-- **Pattern Detection**: Identifies daily, weekly, and monthly spending routines automatically
-- **Trend Analysis**: Detects increasing/decreasing trends and unusual spending spikes
-- **Spending Predictions**: Forecasts future expenses with overspending risk assessment
-- **Smart Nudges**: Proactive alerts before overspending occurs, with personalized recommendations
+### Financial Guidance System (Rule-Based Analytics)
+- **Top 3 Money Leaks**: Automatically detects and ranks top spending leaks (subscriptions, coffee effect, ATM spikes, friend-covering, high-impact one-time, emotional spending)
+- **Category Overspending Alerts**: Flags categories exceeding historical spending patterns
+- **Year-End Savings Projection**: Calculates projected savings in best/likely/worst scenarios
+- **Weekend Overspending**: Compares weekend vs weekday spending patterns
+- **Salary Week Analysis**: Detects spending spikes during salary weeks
+- **Month-End Scarcity**: Identifies reduced spending behavior at month-end
+- **Grocery vs Eating-Out**: Analyzes food spending patterns and suggests improvements
+- **Investment Tracking**: Tracks monthly and cumulative investment totals
+- **Subscriptions Analysis**: Identifies recurring non-investment subscriptions
+- **Category Trend Visualization**: Generates JSON data for spending trend charts
+- **Regular Monthly Spending**: Separates recurring expenses from investments
 
 ### Customizable Taxonomy
 - **YAML-Based Configuration**: Edit categories via `categories.yml` without code changes
@@ -90,6 +97,7 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Android Mobile App**: On-device PyTorch Mobile inference for offline operation
 - **Offline-First**: Works without internet connectivity
 - **Local Inference**: No external API dependencies, ensuring privacy and zero recurring costs
+- **Virtual Environment Setup**: Mobile app uses Python venv for model conversion (ARM64 support for Apple Silicon)
 
 ## 📊 Performance Metrics
 
@@ -139,22 +147,42 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 
 ```
 budgetbuddy-ai/
-├── src/main/java/          # Spring Boot backend
-│   ├── controller/         # REST controllers
-│   ├── service/            # Business logic
-│   ├── model/              # JPA entities
-│   └── repository/         # Data access layer
-├── mybudget-ai/            # ML service
-│   ├── train_distilbert.py # Model training (with corrections support)
-│   ├── inference_local.py  # Local inference
-│   ├── export_corrections.py # Export user corrections
-│   ├── retrain_with_feedback.py # Retrain with bias safeguards
-│   ├── bias_monitoring.py  # Bias drift detection
-│   ├── categories.yml      # Category taxonomy
-│   └── models/             # Trained models
-├── mobile-version/         # Android app
-│   └── app/                # Kotlin + Compose
-└── README.md               # This file
+├── src/main/java/                    # Spring Boot backend
+│   ├── controller/
+│   │   ├── TransactionController.java
+│   │   └── FinancialGuidanceController.java  # Financial guidance dashboard
+│   ├── service/
+│   │   ├── TransactionCategorizationService.java
+│   │   ├── LocalModelInferenceService.java
+│   │   ├── MoneyLeakService.java              # Top 3 money leaks detection
+│   │   ├── CategoryOverspendingService.java   # Category overspending alerts
+│   │   ├── SavingsProjectionService.java      # Year-end savings projection
+│   │   ├── WeekendOverspendingService.java   # Weekend spending analysis
+│   │   ├── SalaryWeekService.java            # Salary week analysis
+│   │   ├── MonthEndScarcityService.java       # Month-end scarcity detection
+│   │   └── FinancialAnalyticsService.java    # Rule-based analytics (grocery vs dining, investments, subscriptions, trends)
+│   ├── model/                         # JPA entities
+│   └── repository/                    # Data access layer
+├── mybudget-ai/                       # ML service
+│   ├── train_distilbert.py            # Model training (with corrections support)
+│   ├── inference_local.py             # Local inference (with user corrections)
+│   ├── distilbert_inference.py        # DistilBERT model inference
+│   ├── export_corrections.py          # Export user corrections
+│   ├── retrain_with_feedback.py       # Retrain with bias safeguards
+│   ├── bias_monitoring.py             # Bias drift detection
+│   ├── dataset_maintenance.py         # Dataset maintenance utilities
+│   ├── preprocessing_utils.py         # Text preprocessing utilities
+│   ├── add_correction.py              # Add user corrections
+│   ├── get_categories.py              # Extract categories from YAML
+│   ├── categories.yml                 # Category taxonomy
+│   └── models/                        # Trained models
+│       └── distilbert_multitask_latest/
+├── mobile-version/                    # Android app
+│   ├── app/                           # Kotlin + Compose
+│   └── scripts/                       # Mobile utilities
+├── src/main/resources/templates/     # Thymeleaf UI templates
+│   └── guidance_dashboard.html       # Financial guidance dashboard
+└── README.md                          # This file
 ```
 
 ## 🛠️ Technology Stack
@@ -421,6 +449,17 @@ Started BudgetBuddyApplication in X.XXX seconds
 2. **Access the web interface**:
    - Open browser: http://localhost:8080
    - You should see the BudgetBuddy AI homepage
+   - **Financial Guidance Dashboard**: http://localhost:8080/guidance/dashboard
+     - View Top 3 Money Leaks
+     - Category Overspending Alerts
+     - Year-End Savings Projection
+     - Weekend Overspending Analysis
+     - Salary Week Analysis
+     - Month-End Scarcity Detection
+     - Grocery vs Eating-Out Patterns
+     - Investment Tracking
+     - Subscriptions Analysis
+     - Category Trend Visualization
 
 3. **Test API endpoints** (optional):
    ```bash
@@ -526,6 +565,7 @@ pip install -r requirements.txt
 ### 4. Train Model
 ```bash
 cd mybudget-ai
+source venv/bin/activate
 python3 train_distilbert.py
 ```
 

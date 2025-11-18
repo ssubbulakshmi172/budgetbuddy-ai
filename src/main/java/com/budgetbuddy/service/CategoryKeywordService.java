@@ -21,7 +21,6 @@ public class CategoryKeywordService {
         return categoryKeywordRepository.findByCategoryName(categoryName);
     }
 
-
     public void saveCategoryKeyword(CategoryKeyword categoryKeyword) {
         categoryKeywordRepository.save(categoryKeyword);
     }
@@ -68,16 +67,4 @@ public class CategoryKeywordService {
         }
         return manual;
     }
-    
-    public List<String> getTaxonomyCategoryNames() {
-        return categoryKeywordRepository.findDistinctCategoryNamesByCategoriesFor("Taxonomy");
-    }
-    
-    public List<String> getManualCategoryNames() {
-        List<String> allNames = categoryKeywordRepository.findDistinctCategoryNames();
-        List<String> taxonomyNames = getTaxonomyCategoryNames();
-        allNames.removeAll(taxonomyNames);
-        return allNames;
-    }
-
 }

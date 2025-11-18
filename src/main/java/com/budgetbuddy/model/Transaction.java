@@ -45,6 +45,9 @@ public class Transaction {
     @Column(name = "prediction_confidence")
     private Double predictionConfidence; // 0.0 to 1.0
 
+    @Column(name = "prediction_reason", nullable = true)
+    private String predictionReason; // keyword_match, ml_prediction, etc.
+
     @Column(nullable = true)
     private String categoryName; // New column for the matched category
 
@@ -172,6 +175,14 @@ public class Transaction {
 
     public void setPredictionConfidence(Double predictionConfidence) {
         this.predictionConfidence = predictionConfidence;
+    }
+
+    public String getPredictionReason() {
+        return predictionReason;
+    }
+
+    public void setPredictionReason(String predictionReason) {
+        this.predictionReason = predictionReason;
     }
 
     // Override toString method for logging or debugging

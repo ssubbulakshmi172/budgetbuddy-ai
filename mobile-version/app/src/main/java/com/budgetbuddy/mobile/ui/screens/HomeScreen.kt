@@ -15,8 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -293,6 +291,17 @@ fun QuickActionsGrid(navController: NavController) {
                 icon = Icons.Default.AccountBalanceWallet,
                 onClick = { 
                     navController.navigate(Screen.Transactions.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionCard(
+                title = "Financial Guidance",
+                subtitle = "Patterns & insights",
+                icon = Icons.Default.Insights,
+                onClick = { 
+                    navController.navigate(Screen.FinancialGuidance.route) {
                         popUpTo(Screen.Home.route) { inclusive = false }
                     }
                 },

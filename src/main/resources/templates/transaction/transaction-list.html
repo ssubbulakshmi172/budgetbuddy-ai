@@ -25,7 +25,18 @@
                     </h1>
                     <p class="lead text-muted">View and manage all your transactions</p>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <!-- Mode Toggle -->
+                    <div class="btn-group" role="group" aria-label="Mode selection">
+                        <input type="radio" class="btn-check" name="mode" id="privateMode" checked>
+                        <label class="btn btn-outline-primary" for="privateMode">
+                            <i class="bi bi-shield-lock me-2"></i>Private Mode
+                        </label>
+                        <input type="radio" class="btn-check" name="mode" id="efficientMode" disabled>
+                        <label class="btn btn-outline-secondary" for="efficientMode" title="Coming soon">
+                            <i class="bi bi-cloud me-2"></i>Efficient Mode
+                        </label>
+                    </div>
                     <button type="button" id="refreshAiCategoriesBtn" class="btn btn-outline-primary btn-lg shadow-sm">
                         <i class="bi bi-arrow-clockwise me-2"></i>Refresh AI Categories
                     </button>
@@ -75,13 +86,15 @@
                                 </th>
                                 <th>Description</th>
                                 <th style="min-width: 150px;">Category</th>
-                                <th style="min-width: 150px;">Predicted Category</th> <!-- 🟢 NEW COLUMN -->
+                                <th style="min-width: 180px;">AI Prediction</th>
                                 <th class="text-end pe-4" style="min-width: 150px;">Amount</th>
                                 <th class="text-center" style="width: 100px;">Actions</th>
                             </tr>
                             </thead>
                             <tbody>
-                            <tr th:each="transaction : ${transactions}" class="transaction-row table-row-hover">
+                            <tr th:each="transaction : ${transactions}" 
+                                class="transaction-row table-row-hover"
+                                th:attr="data-transaction-id=${transaction.id}">
                                 <td class="ps-4">
                                     <div class="form-check">
                                         <input class="form-check-input transaction-checkbox" type="checkbox"
@@ -136,14 +149,45 @@
                                     <i class="bi bi-info-circle"></i>
                                 </span>
                                 </td>
-                                <!-- 🟢 Predicted Category -->
+                                <!-- AI Prediction with Confidence and Reason -->
                                 <td>
-                                    <span class="badge badge-predicted predicted-category-badge"
-                                          th:if="${transaction.predictedCategory != null and !transaction.predictedCategory.isEmpty()}"
-                                          th:attr="data-full-category=${transaction.predictedCategory}"
-                                          th:text="${transaction.predictedCategory}">
-                                        Predicted
-                                    </span>
+                                    <div th:if="${transaction.predictedCategory != null and !transaction.predictedCategory.isEmpty()}">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="badge badge-predicted predicted-category-badge"
+                                                  th:attr="data-full-category=${transaction.predictedCategory}"
+                                                  th:text="${transaction.predictedCategory}">
+                                                Predicted
+                                            </span>
+                                            <!-- Confidence Badge -->
+                                            <span class="badge"
+                                                  th:class="${transaction.predictionConfidence != null and transaction.predictionConfidence >= 0.8 ? 'bg-success' : transaction.predictionConfidence != null and transaction.predictionConfidence >= 0.6 ? 'bg-warning' : 'bg-secondary'}"
+                                                  th:if="${transaction.predictionConfidence != null}"
+                                                  th:title="'Confidence: ' + ${#numbers.formatDecimal(transaction.predictionConfidence * 100, 1, 1)} + '%'"
+                                                  data-bs-toggle="tooltip">
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                <span th:text="${#numbers.formatDecimal(transaction.predictionConfidence * 100, 0, 0)} + '%'">85%</span>
+                                            </span>
+                                        </div>
+                                        <!-- Reason Badge and Correct Button -->
+                                        <div class="mt-1 d-flex align-items-center gap-2">
+                                            <small class="badge bg-info text-white"
+                                                   th:if="${transaction.predictionReason != null}"
+                                                   th:title="${transaction.predictionReason == 'keyword_match' ? 'Matched via keyword in categories.yml' : transaction.predictionReason == 'user_correction' ? 'User corrected category' : 'Predicted by ML model'}"
+                                                   data-bs-toggle="tooltip">
+                                                <i class="bi"
+                                                   th:class="${transaction.predictionReason == 'keyword_match' ? 'bi-tag-fill' : transaction.predictionReason == 'user_correction' ? 'bi-check-circle-fill' : 'bi-cpu'}"></i>
+                                                <span th:text="${transaction.predictionReason == 'keyword_match' ? 'Keyword' : transaction.predictionReason == 'user_correction' ? 'Corrected' : 'ML'}">ML</span>
+                                            </small>
+                                            <!-- Correct Button -->
+                                            <button class="btn btn-sm btn-outline-primary correct-category-btn"
+                                                    th:attr="data-transaction-id=${transaction.id}, data-narration=${transaction.narration}, data-current-category=${transaction.predictedCategory}"
+                                                    th:if="${transaction.predictionReason != 'user_correction'}"
+                                                    title="Correct this prediction"
+                                                    style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">
+                                                <i class="bi bi-pencil-square"></i> Correct
+                                            </button>
+                                        </div>
+                                    </div>
                                     <span class="badge badge-uncategorized"
                                           th:if="${transaction.predictedCategory == null or transaction.predictedCategory.isEmpty()}">
                                         N/A
@@ -317,22 +361,39 @@
                             const originalHtml = refreshAiCategoriesBtn.innerHTML;
                             refreshAiCategoriesBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
                             
-                            // Call the refresh endpoint
+                            // Call the refresh endpoint with extended timeout for large batches
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+                            
                             fetch('/transactions/refresh-categories', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
-                                }
+                                },
+                                signal: controller.signal
                             })
-                            .then(response => response.json())
+                            .then(response => {
+                                clearTimeout(timeoutId);
+                                if (!response.ok) {
+                                    return response.json().then(data => {
+                                        throw new Error(data.message || 'Server error: ' + response.status);
+                                    });
+                                }
+                                return response.json();
+                            })
                             .then(data => {
                                 // Show success message and reload page
                                 alert(data.message || 'All transaction categories refreshed successfully!');
                                 window.location.reload();
                             })
                             .catch(error => {
+                                clearTimeout(timeoutId);
                                 // Show error and re-enable button
-                                alert('Error refreshing categories: ' + error.message);
+                                console.error('Error refreshing categories:', error);
+                                const errorMsg = error.name === 'AbortError' 
+                                    ? 'Request timed out. The refresh is still running in the background. Please wait and refresh the page later.'
+                                    : (error.message || error);
+                                alert('Error refreshing categories: ' + errorMsg);
                                 refreshAiCategoriesBtn.disabled = false;
                                 refreshAiCategoriesBtn.innerHTML = originalHtml;
                             });
@@ -400,6 +461,394 @@
               });
             });
         </script>
+        
+        <!-- Correction Modal Script -->
+        <script>
+            // Wait for DOM and Bootstrap to be ready
+            document.addEventListener('DOMContentLoaded', function() {
+                let currentTransactionId = null;
+                let categoriesList = [];
+                const correctionModalElement = document.getElementById('correctionModal');
+                
+                // Use Bootstrap's getOrCreateInstance to avoid duplicate backdrops
+                let correctionModal = null;
+                if (correctionModalElement) {
+                    try {
+                        correctionModal = bootstrap.Modal.getOrCreateInstance(correctionModalElement);
+                    } catch (error) {
+                        console.error('Error initializing modal:', error);
+                    }
+                }
+                
+                // Function to load categories from backend
+                function loadCategories() {
+                    const select = document.getElementById('correctionCategory');
+                    if (!select) {
+                        return;
+                    }
+                    
+                    // Show loading state
+                    select.innerHTML = '<option value="">Loading categories...</option>';
+                    select.disabled = false;
+                    
+                    fetch('/transactions/categories-list')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to load categories');
+                            }
+                            return response.json();
+                        })
+                        .then(categories => {
+                            if (!Array.isArray(categories) || categories.length === 0) {
+                                throw new Error('No categories returned');
+                            }
+                            categoriesList = categories;
+                            // Clear and populate dropdown
+                            select.innerHTML = '<option value="">-- Select Category --</option>';
+                            categories.forEach(category => {
+                                const option = document.createElement('option');
+                                option.value = category;
+                                option.textContent = category;
+                                select.appendChild(option);
+                            });
+                            select.disabled = false;
+                        })
+                        .catch(error => {
+                            select.innerHTML = '<option value="">Error loading categories</option>';
+                            select.disabled = false;
+                            // Try to load from cache if available
+                            if (categoriesList.length > 0) {
+                                select.innerHTML = '<option value="">-- Select Category --</option>';
+                                categoriesList.forEach(category => {
+                                    const option = document.createElement('option');
+                                    option.value = category;
+                                    option.textContent = category;
+                                    select.appendChild(option);
+                                });
+                            }
+                        });
+                }
+                
+                // Load categories when modal is shown
+                if (correctionModalElement) {
+                    correctionModalElement.addEventListener('show.bs.modal', function() {
+                        loadCategories();
+                        
+                        // Check for duplicate backdrops and remove them
+                        setTimeout(function() {
+                            const backdrops = document.querySelectorAll('.modal-backdrop');
+                            if (backdrops.length > 1) {
+                                for (let i = 1; i < backdrops.length; i++) {
+                                    backdrops[i].remove();
+                                }
+                            }
+                        }, 100);
+                    });
+                    
+                    // Set current category when modal is fully shown
+                    correctionModalElement.addEventListener('shown.bs.modal', function() {
+                        // Ensure modal is visible and interactive
+                        const modal = document.getElementById('correctionModal');
+                        const backdrops = document.querySelectorAll('.modal-backdrop');
+                        
+                        if (modal) {
+                            modal.style.display = 'block';
+                            modal.style.zIndex = '1060';
+                            modal.style.pointerEvents = 'auto';
+                            modal.classList.add('show');
+                        }
+                        
+                        // Make backdrop non-interactive
+                        if (backdrops.length > 0) {
+                            backdrops[0].style.pointerEvents = 'none';
+                        }
+                        
+                        // Ensure modal content is interactive
+                        const modalContent = modal?.querySelector('.modal-content');
+                        if (modalContent) {
+                            modalContent.style.pointerEvents = 'auto';
+                        }
+                        
+                        // Ensure dropdown is enabled and clickable
+                        const categorySelect = document.getElementById('correctionCategory');
+                        if (categorySelect) {
+                            categorySelect.disabled = false;
+                            categorySelect.style.pointerEvents = 'auto';
+                            categorySelect.style.cursor = 'pointer';
+                            
+                            // Set current category if available
+                            if (currentTransactionId) {
+                                const correctBtn = document.querySelector(`[data-transaction-id="${currentTransactionId}"]`);
+                                if (correctBtn) {
+                                    const currentCategory = correctBtn.dataset.currentCategory || '';
+                                    if (currentCategory) {
+                                        categorySelect.value = currentCategory;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Handle correction button clicks using event delegation
+                document.addEventListener('click', function(e) {
+                    const correctBtn = e.target.closest('.correct-category-btn');
+                    if (correctBtn && correctionModal) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        currentTransactionId = correctBtn.dataset.transactionId;
+                        const narration = correctBtn.dataset.narration || 'N/A';
+                        const currentCategory = correctBtn.dataset.currentCategory || '';
+                        
+                        const narrationElement = document.getElementById('correctionNarration');
+                        if (narrationElement) {
+                            narrationElement.textContent = narration.length > 100 
+                                ? narration.substring(0, 100) + '...' 
+                                : narration;
+                        }
+                        
+                        // Show modal (this will trigger category loading via show.bs.modal event)
+                        try {
+                            // Ensure no duplicate instances before showing
+                            const existingInstance = bootstrap.Modal.getInstance(correctionModalElement);
+                            if (existingInstance && existingInstance !== correctionModal) {
+                                existingInstance.dispose();
+                                correctionModal = bootstrap.Modal.getOrCreateInstance(correctionModalElement);
+                            }
+                            
+                            correctionModal.show();
+                            
+                            // Ensure modal is visible and interactive after a short delay
+                            setTimeout(function() {
+                                const modal = document.getElementById('correctionModal');
+                                const backdrops = document.querySelectorAll('.modal-backdrop');
+                                
+                                // Remove duplicate backdrops
+                                if (backdrops.length > 1) {
+                                    for (let i = 1; i < backdrops.length; i++) {
+                                        backdrops[i].remove();
+                                    }
+                                }
+                                
+                                // Force z-index on backdrop and modal via inline styles
+                                if (backdrops.length > 0) {
+                                    backdrops[0].style.zIndex = '1055';
+                                    backdrops[0].style.pointerEvents = 'none';
+                                }
+                                if (modal) {
+                                    modal.style.zIndex = '1060';
+                                    modal.style.pointerEvents = 'auto';
+                                }
+                                
+                                // Also ensure modal content is interactive
+                                const modalContent = modal?.querySelector('.modal-content');
+                                if (modalContent) {
+                                    modalContent.style.pointerEvents = 'auto';
+                                    modalContent.style.zIndex = '1061';
+                                }
+                                
+                                // Force modal visibility if needed
+                                if (modal && !modal.classList.contains('show')) {
+                                    modal.classList.add('show');
+                                    modal.style.display = 'block';
+                                }
+                                
+                                // Ensure dropdown is clickable
+                                const select = document.getElementById('correctionCategory');
+                                if (select) {
+                                    select.disabled = false;
+                                    select.style.pointerEvents = 'auto';
+                                    select.style.cursor = 'pointer';
+                                }
+                            }, 300);
+                        } catch (error) {
+                            console.error('Error showing modal:', error);
+                            alert('Error opening modal. Please refresh the page.');
+                        }
+                    }
+                });
+                
+                // Handle save correction
+                const saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
+                if (saveCorrectionBtn) {
+                    saveCorrectionBtn.addEventListener('click', function() {
+                        const category = document.getElementById('correctionCategory').value.trim();
+                        if (!category) {
+                            alert('Please select a category');
+                            return;
+                        }
+                        
+                        if (!currentTransactionId) {
+                            alert('Error: Transaction ID not found');
+                            return;
+                        }
+                        
+                        // Disable button during request
+                        const btn = this;
+                        btn.disabled = true;
+                        btn.textContent = 'Saving...';
+                        
+                        // Send correction request
+                        const formData = new FormData();
+                        formData.append('transactionId', currentTransactionId);
+                        formData.append('category', category);
+                        
+                        fetch('/transactions/add-correction', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update the UI immediately without full page reload
+                                if (data.transactionId && data.updatedCategory) {
+                                    // Find the transaction row and update it
+                                    const transactionRow = document.querySelector(`tr[data-transaction-id="${data.transactionId}"]`);
+                                    if (transactionRow) {
+                                        // Update category badge (the main category display)
+                                        const categoryBadge = transactionRow.querySelector('.category-badge');
+                                        if (categoryBadge) {
+                                            categoryBadge.textContent = data.updatedCategory;
+                                            categoryBadge.setAttribute('data-full-category', data.updatedCategory);
+                                            // Update class if needed
+                                            if (data.updatedCategory && data.updatedCategory !== 'Uncategorized') {
+                                                categoryBadge.classList.remove('badge-uncategorized');
+                                                categoryBadge.classList.add('badge-category');
+                                            }
+                                        }
+                                        
+                                        // Update predicted category badge if exists
+                                        const predictedBadge = transactionRow.querySelector('.predicted-category-badge');
+                                        if (predictedBadge) {
+                                            predictedBadge.textContent = data.updatedCategory;
+                                            predictedBadge.setAttribute('data-full-category', data.updatedCategory);
+                                        }
+                                        
+                                        // Hide the correct button since it's now corrected
+                                        const correctBtn = transactionRow.querySelector('.correct-category-btn');
+                                        if (correctBtn) {
+                                            correctBtn.style.display = 'none';
+                                        }
+                                        
+                                        // Update prediction reason badge to show "Corrected"
+                                        const reasonBadge = transactionRow.querySelector('.badge.bg-info');
+                                        if (reasonBadge) {
+                                            const icon = reasonBadge.querySelector('i');
+                                            const span = reasonBadge.querySelector('span');
+                                            if (icon) {
+                                                icon.className = 'bi bi-check-circle-fill';
+                                            }
+                                            if (span) {
+                                                span.textContent = 'Corrected';
+                                            }
+                                            reasonBadge.setAttribute('title', 'User corrected category');
+                                        }
+                                        
+                                        // Show visual feedback
+                                        transactionRow.style.backgroundColor = '#d4edda';
+                                        setTimeout(() => {
+                                            transactionRow.style.backgroundColor = '';
+                                        }, 2000);
+                                    }
+                                }
+                                
+                                // Show success message
+                                alert(data.message);
+                                
+                                // Close modal
+                                if (correctionModal) {
+                                    correctionModal.hide();
+                                }
+                                
+                                // Reload after a short delay to ensure all data is synced
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1500);
+                            } else {
+                                alert(data.message || 'Failed to save correction');
+                                btn.disabled = false;
+                                btn.textContent = 'Save Correction';
+                            }
+                        })
+                        .catch(error => {
+                            alert('Error saving correction: ' + error.message);
+                            btn.disabled = false;
+                            btn.textContent = 'Save Correction';
+                        });
+                    });
+                } else {
+                    console.error('Save correction button not found!');
+                }
+            });
+        </script>
+        
+        <!-- Correction Modal -->
+        <!-- Note: No data-bs-toggle/data-toggle to prevent auto-initialization by Bootstrap -->
+        <div class="modal fade" id="correctionModal" tabindex="-1" aria-labelledby="correctionModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="correctionModalLabel">
+                            <i class="bi bi-pencil-square me-2"></i>Correct Category
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">Select the correct category for this transaction:</p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Transaction:</label>
+                            <p class="text-muted small border rounded p-2 bg-light" id="correctionNarration" style="word-break: break-word;"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="correctionCategory" class="form-label fw-bold">Correct Category:</label>
+                            <select class="form-select form-select-lg" id="correctionCategory" required>
+                                <option value="">-- Select Category --</option>
+                                <!-- Categories will be loaded dynamically -->
+                            </select>
+                            <small class="form-text text-muted">Select the correct category from the list</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="saveCorrectionBtn">
+                            <i class="bi bi-check-circle me-1"></i>Save Correction
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            /* Only force modal above backdrop if needed */
+            /* Bootstrap's default backdrop is 1050, so modal must be higher */
+            .modal {
+                z-index: 1060 !important;
+            }
+            .modal-backdrop {
+                z-index: 1055 !important;
+                pointer-events: none !important; /* Allow clicks to pass through */
+            }
+            /* Ensure modal content is interactive */
+            .modal-content {
+                pointer-events: auto !important;
+            }
+            .modal-body {
+                pointer-events: auto !important;
+            }
+            /* Ensure dropdown is clickable */
+            #correctionCategory {
+                pointer-events: auto !important;
+                cursor: pointer !important;
+            }
+            /* Ensure dropdown options are visible */
+            #correctionCategory option {
+                background-color: white !important;
+                color: black !important;
+            }
+        </style>
 
 </body>
 </html>

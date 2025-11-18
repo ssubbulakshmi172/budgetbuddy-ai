@@ -117,5 +117,28 @@ class TransactionViewModel(
             }
         }
     }
+    
+    fun deleteTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            try {
+                _state.update { it.copy(isLoading = true, error = null) }
+                
+                transactionRepository.deleteTransaction(transaction)
+                
+                android.util.Log.d("TransactionViewModel", "✅ Deleted transaction ${transaction.id}")
+                
+                // Reload transactions
+                loadTransactions()
+            } catch (e: Exception) {
+                android.util.Log.e("TransactionViewModel", "❌ Error deleting transaction: ${e.message}", e)
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: "Error deleting transaction"
+                    )
+                }
+            }
+        }
+    }
 }
 

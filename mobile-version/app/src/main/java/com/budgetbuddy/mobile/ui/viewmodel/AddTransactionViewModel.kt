@@ -42,9 +42,11 @@ class AddTransactionViewModel(
                 
                 android.util.Log.d("AddTransactionViewModel", "✅ Prediction complete!")
                 android.util.Log.d("AddTransactionViewModel", "   Category: ${prediction.predictedCategory}")
+                android.util.Log.d("AddTransactionViewModel", "   Subcategory: ${prediction.predictedSubcategory ?: "N/A"}")
                 android.util.Log.d("AddTransactionViewModel", "   Type: ${prediction.transactionType}")
                 android.util.Log.d("AddTransactionViewModel", "   Intent: ${prediction.intent}")
                 android.util.Log.d("AddTransactionViewModel", "   Confidence: ${prediction.confidence}")
+                android.util.Log.d("AddTransactionViewModel", "   Keyword Matched: ${prediction.keywordMatched}")
                 
                 _state.update {
                     it.copy(
@@ -116,6 +118,7 @@ class AddTransactionViewModel(
                     closingBalance = null,
                     userId = userId,
                     predictedCategory = prediction?.predictedCategory,
+                    predictedSubcategory = prediction?.predictedSubcategory, // Now extracted from prediction
                     predictedTransactionType = prediction?.transactionType,
                     predictedIntent = prediction?.intent,
                     predictionConfidence = prediction?.confidence,

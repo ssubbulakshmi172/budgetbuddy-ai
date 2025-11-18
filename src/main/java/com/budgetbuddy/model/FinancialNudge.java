@@ -67,7 +67,13 @@ public class FinancialNudge {
         OVERSPENDING_RISK,      // High risk of overspending
         TREND_WARNING,          // Unusual trend detected
         BUDGET_MILESTONE,       // Approaching budget limit
-        SAVINGS_OPPORTUNITY     // Opportunity to save
+        SAVINGS_OPPORTUNITY,    // Opportunity to save
+        CATEGORY_OVERSPENDING,  // Category-level overspending alert
+        MONEY_LEAK_DETECTED,    // Money leak detected (subscription, coffee-effect, etc.)
+        WEEKEND_OVERSPENDING,   // Weekend overspending pattern
+        SALARY_WEEK_SPIKE,      // Spending spike after salary
+        MONTH_END_SCARCITY,     // Month-end scarcity behavior
+        YEAR_END_SAVINGS_PROJECTION  // Year-end savings projection
     }
 
     public enum Priority {

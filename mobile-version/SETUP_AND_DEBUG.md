@@ -320,7 +320,7 @@ Before reporting issues, check:
 - **PyTorch Mobile**: https://pytorch.org/mobile/home/
 - **ADB Commands**: https://developer.android.com/tools/adb
 
-
+## 📋 Useful ADB Commands
 
 # View recent logs (last buffer)
 ~/Library/Android/sdk/platform-tools/adb logcat -d | tail -20
@@ -337,8 +337,6 @@ Before reporting issues, check:
 # Clear logs first, then view new logs
 ~/Library/Android/sdk/platform-tools/adb logcat -c && ~/Library/Android/sdk/platform-tools/adb logcat
 
-
- ~/Library/Android/sdk/platform-tools/adb shell "run-as com.budgetbuddy.mobile ls -lh /data/data/com.budgetbuddy.mobile/databases/ 2>/dev/null"
-
-
+# Check database files
+~/Library/Android/sdk/platform-tools/adb shell "run-as com.budgetbuddy.mobile ls -lh /data/data/com.budgetbuddy.mobile/databases/ 2>/dev/null"
 

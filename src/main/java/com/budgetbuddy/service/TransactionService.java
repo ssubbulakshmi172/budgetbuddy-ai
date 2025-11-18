@@ -69,12 +69,12 @@ public class TransactionService {
     public Transaction getTransactionById(Long id) {
         logger.info("Fetching transaction with ID: {}", id);
         Transaction transaction = transactionRepository.findById(id).orElseThrow(() -> new RuntimeException("Transaction not found"));
-        logger.info("Fetched transaction: {}", transaction);
+        logger.debug("Fetched transaction: {}", transaction);
         return transaction;
     }
 
     public Transaction saveTransaction(Transaction transaction) {
-        logger.info("Saving transaction: {}", transaction);
+        logger.debug("Saving transaction: {}", transaction);
         Transaction savedTransaction = transactionRepository.save(transaction);
         logger.info("Transaction saved with ID: {}", savedTransaction.getId());
         return savedTransaction;
@@ -148,7 +148,7 @@ public class TransactionService {
                     
                     String narration = getCellValueAsString(row.getCell(1));
                     if (narration == null || narration.trim().isEmpty()) {
-                        logger.warn("Skipping row {} - empty narration", row.getRowNum());
+                        logger.warn("Skipping row {} - empty narration field", row.getRowNum());
                         continue;
                     }
                     
@@ -187,38 +187,89 @@ public class TransactionService {
             }
             User user = userOpt.get();
             
-            // BATCH PREDICT: Get all narrations and predict in one call (MUCH FASTER!)
+            // BATCH PREDICT: Get all narrations and predict in one single batch call
             List<String> narrations = transactionDataList.stream()
                 .map(td -> td.narration)
                 .collect(Collectors.toList());
             
-            logger.info("Batch predicting {} transactions (model loads once)...", narrations.size());
+            logger.info("Batch predicting {} transactions in single batch (model loads once)...", narrations.size());
             List<LocalModelInferenceService.PredictionResult> batchPredictions;
+            long batchStartTime = System.currentTimeMillis();
+            
+            // Start progress monitoring in background
+            final int totalCount = narrations.size();
+            Thread progressThread = new Thread(() -> {
+                try {
+                    long startTime = System.currentTimeMillis();
+                    while (!Thread.currentThread().isInterrupted()) {
+                        Thread.sleep(5000); // Log every 5 seconds
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        logger.info("⏳ Batch prediction in progress... (elapsed: {}s, processing {} transactions)", 
+                            elapsed / 1000, totalCount);
+                    }
+                } catch (InterruptedException e) {
+                    // Thread interrupted, prediction completed
+                }
+            });
+            progressThread.setDaemon(true);
+            progressThread.start();
+            
             try {
                 batchPredictions = categorizationService.getBatchFullPredictions(narrations);
-                logger.info("✅ Batch prediction completed for {} transactions", batchPredictions.size());
+                progressThread.interrupt(); // Stop progress logging
+                
+                long batchTime = System.currentTimeMillis() - batchStartTime;
+                logger.info("✅ Batch prediction completed for {} transactions in {}ms ({}s, avg: {}ms per transaction)", 
+                    batchPredictions.size(), batchTime, batchTime / 1000.0, 
+                    batchTime / (double) batchPredictions.size());
             } catch (Exception ex) {
-                logger.error("Batch prediction failed, falling back to individual predictions: {}", ex.getMessage());
+                progressThread.interrupt(); // Stop progress logging
+                long batchTime = System.currentTimeMillis() - batchStartTime;
+                logger.error("❌ Batch prediction failed after {}ms ({}s), falling back to error predictions: {}", 
+                    batchTime, batchTime / 1000.0, ex.getMessage(), ex);
                 batchPredictions = new ArrayList<>();
                 for (int i = 0; i < narrations.size(); i++) {
-                    batchPredictions.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0));
+                    batchPredictions.add(new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0, "error", false));
                 }
             }
             
             // Second pass: Create transactions with predictions
+            logger.info("Creating and saving {} transactions...", transactionDataList.size());
+            int savedCount = 0;
+            int errorCount = 0;
+            long saveStartTime = System.currentTimeMillis();
+            
+            // Process manual keyword matching in parallel with transaction creation
+            java.util.concurrent.ExecutorService keywordExecutor = java.util.concurrent.Executors.newFixedThreadPool(
+                Math.min(4, Runtime.getRuntime().availableProcessors()));
+            List<java.util.concurrent.Future<String>> keywordFutures = new ArrayList<>();
+            
+            // Submit all keyword matching tasks in parallel
+            for (TransactionData td : transactionDataList) {
+                final String narration = td.narration;
+                keywordFutures.add(keywordExecutor.submit(() -> {
+                    return categoryKeywords.stream()
+                        .filter(keyword -> narration.matches("(?i).*\\b" + Pattern.quote(keyword.getKeyword()) + "\\b.*"))
+                        .map(CategoryKeyword::getCategoryName)
+                        .findFirst()
+                        .orElse(null);
+                }));
+            }
+            
             for (int i = 0; i < transactionDataList.size(); i++) {
                 TransactionData td = transactionDataList.get(i);
                 LocalModelInferenceService.PredictionResult prediction = 
                     (i < batchPredictions.size()) ? batchPredictions.get(i) : 
-                    new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0);
+                    new LocalModelInferenceService.PredictionResult("Uncategorized", null, null, null, 0.0, "error", false);
                 
                 try {
-                    // Match category keywords
-                    String categoryName = categoryKeywords.stream()
-                        .filter(keyword -> td.narration.matches("(?i).*\\b" + Pattern.quote(keyword.getKeyword()) + "\\b.*"))
-                        .map(CategoryKeyword::getCategoryName)
-                        .findFirst()
-                        .orElse(null);
+                    // Get manual keyword matching result (from parallel processing)
+                    String categoryName = null;
+                    try {
+                        categoryName = keywordFutures.get(i).get();
+                    } catch (Exception e) {
+                        logger.warn("Error getting keyword match for transaction {}: {}", i, e.getMessage());
+                    }
 
                     // Create and save transaction
                     Transaction transaction = new Transaction();
@@ -234,15 +285,42 @@ public class TransactionService {
                     transaction.setPredictedTransactionType(prediction.getTransactionType());
                     transaction.setPredictedIntent(prediction.getIntent());
                     transaction.setPredictionConfidence(prediction.getConfidence());
+                    transaction.setPredictionReason(prediction.getReason());
                     transaction.setUser(user);
                     transaction.setAmount(td.amount);
 
                     transactionRepository.save(transaction);
+                    savedCount++;
+                    
+                    // Log progress every 100 transactions
+                    if ((i + 1) % 100 == 0) {
+                        logger.info("Progress: {}/{} transactions saved...", i + 1, transactionDataList.size());
+                    }
 
                 } catch (Exception e) {
-                    logger.error("Error processing transaction data at index {}: {}", i, e.getMessage());
-                    throw new IllegalArgumentException("Error processing row " + td.rowNumber + ": " + e.getMessage());
+                    errorCount++;
+                    logger.error("Error processing transaction data at index {} (row {}): {}", 
+                        i, td.rowNumber, e.getMessage(), e);
+                    // Continue processing instead of throwing - we want to save as many as possible
+                    if (errorCount <= 10) {
+                        // Log first 10 errors in detail
+                        logger.error("Transaction error at row {}: {}", td.rowNumber, e.getMessage());
+                    }
                 }
+            }
+            
+            keywordExecutor.shutdown();
+            
+            long saveTime = System.currentTimeMillis() - saveStartTime;
+            logger.info("✅ Transaction save completed: {} saved, {} errors, in {}ms ({}s)", 
+                savedCount, errorCount, saveTime, saveTime / 1000.0);
+            
+            if (errorCount > 0) {
+                logger.warn("⚠️ {} transactions failed to save. Check logs above for details.", errorCount);
+            }
+            
+            if (savedCount == 0 && errorCount > 0) {
+                throw new IllegalArgumentException("Failed to save any transactions. Check logs for details.");
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Error reading the file", e);
@@ -375,9 +453,6 @@ public class TransactionService {
         return transactionRepository.deleteTransactionsByMonthYearAndUser(monthValue, year, userId);
     }
 
-
-
-
     public int deleteSelectedTransactions(List<Long> transactionIds) {
         // Delete transactions by IDs
         List<Transaction> transactionsToDelete = transactionRepository.findAllById(transactionIds);
@@ -440,7 +515,115 @@ public class TransactionService {
         transaction.setCategoryName(categoryName);
         transactionRepository.save(transaction);
     }
-
-
+    
+    /**
+     * Add a user correction for a transaction narration.
+     * Saves the correction to user_corrections.json in Efficient Mode-ready format.
+     * Only essential data (narration and category) is stored.
+     * 
+     * @param narration Transaction narration text
+     * @param category Corrected category
+     * @param userId User ID for Efficient Mode cloud sync (optional, can be null)
+     * @param transactionId Transaction ID for Efficient Mode cloud sync (optional, can be null)
+     * @return true if correction was added successfully
+     */
+    public boolean addCorrection(String narration, String category, Long userId, Long transactionId) {
+        if (narration == null || narration.trim().isEmpty() || category == null || category.trim().isEmpty()) {
+            logger.warn("Cannot add correction: narration or category is empty");
+            return false;
+        }
+        
+        try {
+            // Call Python script to add correction
+            String projectRoot = System.getProperty("user.dir");
+            String scriptPath = "mybudget-ai/add_correction.py";
+            if (!new java.io.File(scriptPath).isAbsolute()) {
+                scriptPath = new java.io.File(projectRoot, scriptPath).getAbsolutePath();
+            }
+            
+            // Escape narration and category for shell (handle quotes and special chars)
+            String escapedNarration = narration.replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`");
+            String escapedCategory = category.replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`");
+            
+            // Build command with essential data and Efficient Mode metadata (for future cloud sync)
+            // Python script will handle userId and transactionId if provided
+            String[] command = {
+                "python3",
+                "-u",
+                scriptPath,
+                escapedNarration,
+                escapedCategory,
+                userId != null ? userId.toString() : "",
+                transactionId != null ? transactionId.toString() : ""
+            };
+            
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(new java.io.File(projectRoot));
+            Process process = pb.start();
+            
+            // Read stdout and stderr in separate threads to prevent blocking
+            StringBuilder output = new StringBuilder();
+            StringBuilder errorOutput = new StringBuilder();
+            
+            // Read stdout
+            Thread stdoutReader = new Thread(() -> {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error reading Python stdout: {}", e.getMessage());
+                }
+            });
+            stdoutReader.setDaemon(true);
+            stdoutReader.start();
+            
+            // Read stderr (where Python logs errors)
+            Thread stderrReader = new Thread(() -> {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        errorOutput.append(line).append("\n");
+                        // Log important messages
+                        if (line.contains("✅") || line.contains("❌") || line.contains("Error") || 
+                            line.contains("Failed") || line.contains("Exception") || line.contains("Traceback")) {
+                            logger.info("Python: {}", line);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error reading Python stderr: {}", e.getMessage());
+                }
+            });
+            stderrReader.setDaemon(true);
+            stderrReader.start();
+            
+            // Wait for process
+            int exitCode = process.waitFor();
+            
+            // Wait for readers to finish
+            try {
+                stdoutReader.join(1000);
+                stderrReader.join(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            if (exitCode == 0) {
+                logger.info("✅ Correction added successfully (Efficient Mode-ready): '{}' -> '{}'", 
+                    narration.substring(0, Math.min(50, narration.length())), category);
+                return true;
+            } else {
+                logger.error("❌ Failed to add correction. Exit code: {}, Stdout: {}, Stderr: {}", 
+                    exitCode, output.toString(), errorOutput.toString());
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("❌ Error adding correction: {}", e.getMessage(), e);
+            return false;
+        }
+    }
 
 }

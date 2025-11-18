@@ -19,9 +19,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("SELECT DISTINCT t.predictedSubcategory FROM Transaction t WHERE t.predictedSubcategory IS NOT NULL AND t.predictedSubcategory != '' ORDER BY t.predictedSubcategory")
     List<String> findDistinctPredictedSubcategories();
 
-
-
-
     // Query to find transactions by month, year, and user
     @Query("SELECT t FROM Transaction t WHERE MONTH(t.date) = :month AND YEAR(t.date) = :year AND t.user.id = :userId")
     List<Transaction> findTransactionsByMonthYearAndUser(@Param("month") int month,
@@ -71,7 +68,4 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                          @Param("amountValue") Double amountValue,
                                          @Param("amountOperator") String amountOperator,
                                          @Param("narration") String narration);
-
-
-
 }

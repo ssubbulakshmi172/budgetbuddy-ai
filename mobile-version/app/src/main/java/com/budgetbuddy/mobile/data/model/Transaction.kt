@@ -38,6 +38,8 @@ data class Transaction(
     
     val predictedCategory: String?,
     
+    val predictedSubcategory: String?,
+    
     val predictedTransactionType: String?, // P2C, P2P, P2Business
     
     val predictedIntent: String?, // purchase, transfer, refund, subscription, bill_payment, other

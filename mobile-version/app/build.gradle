@@ -97,11 +97,6 @@ dependencies {
     implementation 'androidx.room:room-ktx:2.6.1'
     kapt 'androidx.room:room-compiler:2.6.1'
 
-    // SQLCipher for encryption (commented out - add later when needed)
-    // implementation 'net.zetetic:android-database-sqlcipher:4.5.4'
-    // implementation 'androidx.sqlite:sqlite:2.4.0'
-    // Note: Room uses Android's built-in SQLite by default
-
     // DataStore for configuration
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
 
@@ -110,11 +105,6 @@ dependencies {
     implementation 'org.pytorch:pytorch_android:2.1.0'
     implementation 'org.pytorch:pytorch_android_torchvision:2.1.0'
     
-    // TensorFlow Lite (kept for potential fallback or future use)
-    // implementation 'org.tensorflow:tensorflow-lite:2.14.0'
-    // implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
-    // implementation 'org.tensorflow:tensorflow-lite-metadata:0.4.4'
-
     // File parsing (CSV/Excel)
     implementation 'com.opencsv:opencsv:5.9'
     implementation 'org.apache.poi:poi:5.2.5'

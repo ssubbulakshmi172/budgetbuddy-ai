@@ -20,6 +20,13 @@ from transformers import (
     DistilBertForSequenceClassification
 )
 
+# Import preprocessing for user corrections
+try:
+    from preprocessing_utils import preprocess_upi_narration
+    PREPROCESSING_AVAILABLE = True
+except ImportError:
+    PREPROCESSING_AVAILABLE = False
+
 # Suppress warnings
 warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -199,6 +206,8 @@ class DistilBertPredictor:
         self.label_decoders = {}
         self.tasks = {}
         self.keyword_mappings = load_keyword_mappings(categories_file)
+        # User corrections cache (loaded on first use)
+        self._corrections_cache = None
         self._load_model()
     
     def _load_model(self):
@@ -287,10 +296,72 @@ class DistilBertPredictor:
             task_heads_dict = torch.load(task_heads_path, map_location=self.device)
             self.model.task_heads.load_state_dict(task_heads_dict)
     
+    def _load_user_corrections(self):
+        """Load user corrections from JSON file into memory (lazy loading)"""
+        if self._corrections_cache is None:
+            self._corrections_cache = {}
+            corrections_file = os.path.join(SCRIPT_DIR, "user_corrections.json")
+            
+            if os.path.exists(corrections_file):
+                try:
+                    with open(corrections_file, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if content:
+                            corrections_data = json.loads(content)
+                            if isinstance(corrections_data, list):
+                                for correction in corrections_data:
+                                    narration = correction.get("narration", "").strip()
+                                    category = correction.get("category", "").strip()
+                                    if narration and category:
+                                        # Preprocess narration to match how model preprocesses input
+                                        if PREPROCESSING_AVAILABLE:
+                                            preprocessed_narration = preprocess_upi_narration(narration, preserve_p2p_clues=True)
+                                        else:
+                                            preprocessed_narration = clean_text(narration)
+                                        
+                                        if preprocessed_narration and preprocessed_narration.strip():
+                                            key = preprocessed_narration.lower().strip()
+                                            self._corrections_cache[key] = category
+                                        else:
+                                            # Fallback: store original
+                                            key = narration.lower().strip()
+                                            self._corrections_cache[key] = category
+                                
+                                logging.info(f"Loaded {len(self._corrections_cache)} user corrections into memory")
+                except Exception as e:
+                    logging.warning(f"Failed to load user corrections: {e}")
+        
+        return self._corrections_cache
+    
+    def _get_corrected_category(self, narration: str) -> Optional[str]:
+        """Check if narration has a user correction"""
+        if not narration or not narration.strip():
+            return None
+        
+        corrections = self._load_user_corrections()
+        if not corrections:
+            return None
+        
+        # Preprocess narration to match how corrections were stored
+        if PREPROCESSING_AVAILABLE:
+            preprocessed_narration = preprocess_upi_narration(narration, preserve_p2p_clues=True)
+        else:
+            preprocessed_narration = clean_text(narration)
+        
+        if not preprocessed_narration or not preprocessed_narration.strip():
+            preprocessed_narration = narration.strip()
+        
+        key = preprocessed_narration.lower().strip()
+        return corrections.get(key)
+    
     def predict(self, narration: str) -> Dict:
         """
         Predict transaction_type, category, and intent for narration.
-        Keyword matching takes precedence over model predictions.
+        
+        Priority Order:
+        1. User corrections (highest priority - from user_corrections.json)
+        2. Keyword matching (from categories.yml - rule-based)
+        3. DistilBERT model (lowest priority - ML prediction)
         
         Args:
             narration: Transaction description text
@@ -307,7 +378,34 @@ class DistilBertPredictor:
                 "probabilities": {}
             }
         
-        # FIRST: Check keyword matching (takes precedence over model)
+        # STEP 1: Check user corrections first (highest priority)
+        corrected_category = self._get_corrected_category(narration)
+        if corrected_category:
+            # Get model prediction for transaction_type and intent
+            clean_narration = clean_text(narration)
+            model_results = self._predict_with_model(clean_narration) if clean_narration else {
+                "transaction_type": "N/A",
+                "intent": "N/A",
+                "confidence": {},
+                "probabilities": {}
+            }
+            
+            results = {
+                "transaction_type": model_results.get("transaction_type", "N/A"),
+                "category": corrected_category,  # User correction takes highest precedence
+                "intent": model_results.get("intent", "N/A"),
+                "confidence": model_results.get("confidence", {}),
+                "probabilities": model_results.get("probabilities", {})
+            }
+            
+            results["keyword_matched"] = False
+            results["user_correction"] = True
+            results["model_category"] = model_results.get("category", "Uncategorized")
+            
+            logging.info(f"✅ Using user correction: '{narration[:50]}...' -> '{corrected_category}'")
+            return results
+        
+        # STEP 2: Check keyword matching (rule-based from categories.yml)
         # Check both original and cleaned narration
         keyword_matched_category = match_keywords(narration, self.keyword_mappings)
         if not keyword_matched_category:
@@ -330,7 +428,7 @@ class DistilBertPredictor:
             # Override category with keyword match, but keep model's transaction_type and intent
             results = {
                 "transaction_type": model_results.get("transaction_type", "N/A"),
-                "category": keyword_matched_category,  # Keyword match takes precedence
+                "category": keyword_matched_category,  # Keyword match takes precedence over model
                 "intent": model_results.get("intent", "N/A"),
                 "confidence": model_results.get("confidence", {}),
                 "probabilities": model_results.get("probabilities", {})
@@ -338,6 +436,7 @@ class DistilBertPredictor:
             
             # Add flag to indicate keyword matching was used
             results["keyword_matched"] = True
+            results["user_correction"] = False
             results["model_category"] = model_results.get("category", "Uncategorized")  # Store model's original prediction
             
             logging.info(f"✅ Using keyword-matched category '{keyword_matched_category}' "
@@ -345,7 +444,7 @@ class DistilBertPredictor:
             
             return results
         
-        # No keyword match - use model prediction
+        # STEP 3: No correction or keyword match - use model prediction (lowest priority)
         clean_narration = clean_text(narration)
         if not clean_narration:
             return {
@@ -358,6 +457,7 @@ class DistilBertPredictor:
         
         results = self._predict_with_model(clean_narration)
         results["keyword_matched"] = False
+        results["user_correction"] = False
         return results
     
     def _predict_with_model(self, clean_narration: str) -> Dict:

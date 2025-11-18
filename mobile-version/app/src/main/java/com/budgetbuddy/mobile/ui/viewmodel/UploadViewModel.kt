@@ -175,6 +175,7 @@ class UploadViewModel(
                     result.add(
                         transaction.copy(
                             predictedCategory = prediction.predictedCategory,
+                            predictedSubcategory = prediction.predictedSubcategory,
                             predictedTransactionType = prediction.transactionType,
                             predictedIntent = prediction.intent,
                             predictionConfidence = prediction.confidence,

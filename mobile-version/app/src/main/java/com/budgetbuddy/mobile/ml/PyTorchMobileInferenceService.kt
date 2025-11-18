@@ -10,6 +10,7 @@ import java.io.File
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import java.io.InputStream
+import com.budgetbuddy.mobile.ml.TextPreprocessor
 
 /**
  * PyTorch Mobile inference service for DistilBERT model
@@ -17,7 +18,10 @@ import java.io.InputStream
  * Uses the converted TorchScript Lite (.ptl) model.
  * Model outputs tuple: (transaction_type, category, intent) logits
  */
-class PyTorchMobileInferenceService(private val context: Context) {
+class PyTorchMobileInferenceService(
+    private val context: Context,
+    private val keywordMatcher: com.budgetbuddy.mobile.ml.KeywordMatcher? = null
+) {
     
     private var model: Module? = null
     private var tokenizer: Tokenizer? = null
@@ -25,9 +29,13 @@ class PyTorchMobileInferenceService(private val context: Context) {
     
     data class PredictionResult(
         val predictedCategory: String,
+        val predictedSubcategory: String? = null,  // Extracted from category string
         val transactionType: String,
         val intent: String,
-        val confidence: Double
+        val confidence: Double,  // Category confidence
+        val transactionTypeConfidence: Double? = null,  // Full confidence scores
+        val intentConfidence: Double? = null,
+        val keywordMatched: Boolean = false  // Whether keyword matching was used
     )
     
     data class ModelInfo(
@@ -127,21 +135,137 @@ class PyTorchMobileInferenceService(private val context: Context) {
     }
     
     /**
+     * Extract category and subcategory from full category string
+     * Format: "TopCategory / Subcategory" -> (category="TopCategory", subcategory="Subcategory")
+     */
+    private fun extractCategoryParts(fullCategory: String): Pair<String, String?> {
+        if (fullCategory.contains(" / ")) {
+            val parts = fullCategory.split(" / ", limit = 2)
+            if (parts.size == 2) {
+                return Pair(parts[0].trim(), parts[1].trim())
+            }
+        }
+        return Pair(fullCategory, null)
+    }
+    
+    /**
      * Predict category, transaction type, and intent
+     * 
+     * Flow matches Python model:
+     * 1. Check keyword matching FIRST (takes precedence)
+     * 2. Preprocess text
+     * 3. Get model prediction
+     * 4. Extract subcategory from category string
+     * 5. Return full confidence scores
      */
     suspend fun predict(narration: String): PredictionResult = withContext(Dispatchers.Default) {
+        if (narration.isBlank()) {
+            return@withContext PredictionResult(
+                predictedCategory = "Uncategorized",
+                transactionType = "N/A",
+                intent = "N/A",
+                confidence = 0.0,
+                keywordMatched = false
+            )
+        }
+        
         if (model == null || tokenizer == null) {
             return@withContext PredictionResult(
                 predictedCategory = "Uncategorized",
                 transactionType = "N/A",
                 intent = "N/A",
-                confidence = 0.0
+                confidence = 0.0,
+                keywordMatched = false
             )
         }
         
         try {
+            // STEP 1: Check keyword matching FIRST (takes precedence over model)
+            var keywordMatchedCategory: String? = null
+            if (keywordMatcher != null && keywordMatcher.isKeywordsLoaded()) {
+                // Check both original and cleaned narration
+                keywordMatchedCategory = keywordMatcher.matchKeywords(narration)
+                if (keywordMatchedCategory == null) {
+                    val cleanedNarration = TextPreprocessor.preprocessUpiNarration(narration)
+                    if (cleanedNarration.isNotEmpty() && cleanedNarration.lowercase() != narration.lowercase()) {
+                        keywordMatchedCategory = keywordMatcher.matchKeywords(cleanedNarration)
+                    }
+                }
+            }
+            
+            // STEP 2: Preprocess text
+            val cleanNarration = TextPreprocessor.preprocessUpiNarration(narration)
+            
+            // STEP 3: Get model prediction (always get for transaction_type and intent)
+            val modelResult = if (cleanNarration.isNotEmpty()) {
+                predictWithModel(cleanNarration)
+            } else {
+                null
+            }
+            
+            // STEP 4: If keyword matched, use keyword category but keep model's type/intent
+            if (keywordMatchedCategory != null) {
+                val (topCategory, subcategory) = extractCategoryParts(keywordMatchedCategory)
+                android.util.Log.d("PyTorchMobile", "✅ Using keyword-matched category '$keywordMatchedCategory' " +
+                    "(model would have predicted '${modelResult?.category ?: "N/A"}')")
+                
+                return@withContext PredictionResult(
+                    predictedCategory = topCategory,
+                    predictedSubcategory = subcategory,
+                    transactionType = modelResult?.transactionType ?: "N/A",
+                    intent = modelResult?.intent ?: "N/A",
+                    confidence = modelResult?.categoryConfidence ?: 0.0,
+                    transactionTypeConfidence = modelResult?.transactionTypeConfidence,
+                    intentConfidence = modelResult?.intentConfidence,
+                    keywordMatched = true
+                )
+            }
+            
+            // STEP 5: No keyword match - use model prediction
+            if (modelResult == null) {
+                return@withContext PredictionResult(
+                    predictedCategory = "Uncategorized",
+                    transactionType = "N/A",
+                    intent = "N/A",
+                    confidence = 0.0,
+                    keywordMatched = false
+                )
+            }
+            
+            // STEP 6: Extract subcategory from category string
+            val (topCategory, subcategory) = extractCategoryParts(modelResult.category)
+            
+            return@withContext PredictionResult(
+                predictedCategory = topCategory,
+                predictedSubcategory = subcategory,
+                transactionType = modelResult.transactionType,
+                intent = modelResult.intent,
+                confidence = modelResult.categoryConfidence,
+                transactionTypeConfidence = modelResult.transactionTypeConfidence,
+                intentConfidence = modelResult.intentConfidence,
+                keywordMatched = false
+            )
+            
+        } catch (e: Exception) {
+            android.util.Log.e("PyTorchMobile", "Prediction failed", e)
+            e.printStackTrace()
+            return@withContext PredictionResult(
+                predictedCategory = "Uncategorized",
+                transactionType = "N/A",
+                intent = "N/A",
+                confidence = 0.0,
+                keywordMatched = false
+            )
+        }
+    }
+    
+    /**
+     * Internal method to get model predictions only (no keyword matching)
+     */
+    private suspend fun predictWithModel(cleanNarration: String): ModelPrediction? = withContext(Dispatchers.Default) {
+        try {
             // Tokenize input
-            val tokenIds = tokenizer!!.encode(narration, MAX_SEQUENCE_LENGTH)
+            val tokenIds = tokenizer!!.encode(cleanNarration, MAX_SEQUENCE_LENGTH)
             val attentionMask = LongArray(MAX_SEQUENCE_LENGTH) { if (it < tokenIds.size) 1L else 0L }
             
             // Create input tensors
@@ -175,27 +299,45 @@ class PyTorchMobileInferenceService(private val context: Context) {
             val transactionTypeIdx = transactionTypeLogits.indices.maxByOrNull { transactionTypeLogits[it] } ?: 0
             val intentIdx = intentLogits.indices.maxByOrNull { intentLogits[it] } ?: 0
             
-            // Convert to probabilities for confidence
+            // Convert to probabilities for confidence (all tasks)
             val categoryProbs = softmax(categoryLogits)
+            val transactionTypeProbs = softmax(transactionTypeLogits)
+            val intentProbs = softmax(intentLogits)
+            
             val categoryConfidence = categoryProbs[categoryIdx].toDouble()
+            val transactionTypeConfidence = transactionTypeProbs[transactionTypeIdx].toDouble()
+            val intentConfidence = intentProbs[intentIdx].toDouble()
             
             val category = getCategoryLabel(categoryIdx)
             val transactionType = getTransactionTypeLabel(transactionTypeIdx)
             val intent = getIntentLabel(intentIdx)
             
-            PredictionResult(category, transactionType, intent, categoryConfidence)
+            return@withContext ModelPrediction(
+                category = category,
+                transactionType = transactionType,
+                intent = intent,
+                categoryConfidence = categoryConfidence,
+                transactionTypeConfidence = transactionTypeConfidence,
+                intentConfidence = intentConfidence
+            )
             
         } catch (e: Exception) {
-            android.util.Log.e("PyTorchMobile", "Prediction failed", e)
-            e.printStackTrace()
-            PredictionResult(
-                predictedCategory = "Uncategorized",
-                transactionType = "N/A",
-                intent = "N/A",
-                confidence = 0.0
-            )
+            android.util.Log.e("PyTorchMobile", "Model prediction failed", e)
+            return@withContext null
         }
     }
+    
+    /**
+     * Internal data class for model predictions
+     */
+    private data class ModelPrediction(
+        val category: String,
+        val transactionType: String,
+        val intent: String,
+        val categoryConfidence: Double,
+        val transactionTypeConfidence: Double,
+        val intentConfidence: Double
+    )
     
     /**
      * Batch prediction for multiple transactions (more efficient)

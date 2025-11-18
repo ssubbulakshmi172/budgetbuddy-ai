@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ fun TransactionListScreen(
     val state by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var transactionToDelete by remember { mutableStateOf<com.budgetbuddy.mobile.data.model.Transaction?>(null) }
     
     Scaffold(
         topBar = {
@@ -124,7 +126,15 @@ fun TransactionListScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.transactions) { transaction ->
-                        TransactionCard(transaction = transaction)
+                        TransactionCard(
+                            transaction = transaction,
+                            onEdit = {
+                                navController.navigate(Screen.EditTransaction.createRoute(transaction.id))
+                            },
+                            onDelete = {
+                                transactionToDelete = transaction
+                            }
+                        )
                     }
                 }
             }
@@ -158,11 +168,44 @@ fun TransactionListScreen(
                 }
             )
         }
+        
+        // Delete Single Transaction Confirmation Dialog
+        transactionToDelete?.let { transaction ->
+            AlertDialog(
+                onDismissRequest = { transactionToDelete = null },
+                title = { Text("Delete Transaction") },
+                text = { 
+                    Text("Are you sure you want to delete this transaction: ${transaction.narration}? This action cannot be undone.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteTransaction(transaction)
+                            transactionToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { transactionToDelete = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun TransactionCard(transaction: com.budgetbuddy.mobile.data.model.Transaction) {
+fun TransactionCard(
+    transaction: com.budgetbuddy.mobile.data.model.Transaction,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
     
     Card(
@@ -199,6 +242,36 @@ fun TransactionCard(transaction: com.budgetbuddy.mobile.data.model.Transaction) 
                         MaterialTheme.colorScheme.error
                     }
                 )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(8.dp))

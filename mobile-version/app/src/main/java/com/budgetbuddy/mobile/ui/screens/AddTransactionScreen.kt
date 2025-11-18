@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -431,12 +430,34 @@ fun PredictionCard(prediction: com.budgetbuddy.mobile.ml.PyTorchMobileInferenceS
             HorizontalDivider(color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.3f))
             
             PredictionRow("Category", prediction.predictedCategory)
+            if (prediction.predictedSubcategory != null) {
+                PredictionRow("Subcategory", prediction.predictedSubcategory)
+            }
             PredictionRow("Type", prediction.transactionType)
             PredictionRow("Intent", prediction.intent)
             PredictionRow(
                 "Confidence",
                 "${String.format("%.1f", prediction.confidence * 100)}%"
             )
+            if (prediction.keywordMatched) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Keyword matched",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

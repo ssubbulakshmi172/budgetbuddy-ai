@@ -9,160 +9,201 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Controller
 @RequestMapping("/guidance")
 public class FinancialGuidanceController {
 
     @Autowired
-    private SpendingPatternService spendingPatternService;
-
-    @Autowired
-    private TrendAnalysisService trendAnalysisService;
-
-    @Autowired
-    private SpendingPredictionService spendingPredictionService;
-
-    @Autowired
-    private FinancialNudgeService financialNudgeService;
-
-    @Autowired
     private UserService userService;
 
+    @Autowired
+    private CategoryOverspendingService categoryOverspendingService;
+
+    @Autowired
+    private MoneyLeakService moneyLeakService;
+
+    @Autowired
+    private SavingsProjectionService savingsProjectionService;
+
+    @Autowired
+    private WeekendOverspendingService weekendOverspendingService;
+
+    @Autowired
+    private SalaryWeekService salaryWeekService;
+
+    @Autowired
+    private MonthEndScarcityService monthEndScarcityService;
+
+    @Autowired
+    private FinancialAnalyticsService financialAnalyticsService;
+
     /**
-     * Main guidance dashboard - shows patterns, predictions, trends, and nudges
+     * Main guidance dashboard - shows new 6 financial guidance features
+     * Automatically detects/calculates all insights on page load
      */
     @GetMapping("/dashboard")
     public String showGuidanceDashboard(@RequestParam(required = false) Long userId, Model model) {
         User user = getDefaultUser(userId);
         
-        // Detect patterns
-        List<SpendingPattern> patterns = spendingPatternService.getActivePatterns(user);
+        // Auto-detect/calculate all insights automatically
+        // 1. Category Overspending Alerts
+        List<CategoryOverspendingAlert> categoryAlerts = categoryOverspendingService.detectOverspending(user);
         
-        // Analyze trends
-        TrendAnalysisService.TrendAnalysisResult trends = trendAnalysisService.analyzeTrends(user);
+        // 2. Top 3 Money Leaks (excluding investments)
+        List<MoneyLeak> moneyLeaks = moneyLeakService.detectMoneyLeaks(user);
         
-        // Get predictions for next month
-        LocalDate nextMonthStart = LocalDate.now().withDayOfMonth(1).plusMonths(1);
-        LocalDate nextMonthEnd = nextMonthStart.withDayOfMonth(nextMonthStart.lengthOfMonth());
-        List<SpendingPrediction> predictions = spendingPredictionService.predictFutureSpending(
-            user, nextMonthStart, nextMonthEnd
-        );
+        // 2a. Regular Monthly Spending (including investments, shown separately)
+        List<MoneyLeak> regularMonthlySpending = moneyLeakService.detectRegularMonthlySpending(user);
+        List<MoneyLeak> regularInvestments = regularMonthlySpending.stream()
+            .filter(m -> m.getTitle() != null && m.getTitle().startsWith("Monthly Investment"))
+            .collect(Collectors.toList());
+        List<MoneyLeak> regularExpenses = regularMonthlySpending.stream()
+            .filter(m -> m.getTitle() != null && m.getTitle().startsWith("Monthly Expense"))
+            .collect(Collectors.toList());
         
-        // Auto-generate nudges if none exist (first time visit or after refresh)
-        List<FinancialNudge> nudges = financialNudgeService.getActiveNudges(user);
-        if (nudges.isEmpty() && (!patterns.isEmpty() || !predictions.isEmpty())) {
-            // Auto-generate nudges if we have patterns or predictions but no nudges
-            financialNudgeService.generateNudges(user);
-            nudges = financialNudgeService.getActiveNudges(user);
-        }
+        // 2b. New Rule-Based Analytics
+        Map<String, Object> groceryVsEatingOut = financialAnalyticsService.analyzeGroceryVsEatingOut(user);
+        Map<String, Object> investmentTracking = financialAnalyticsService.trackInvestments(user);
+        Map<String, Object> subscriptions = financialAnalyticsService.analyzeSubscriptions(user);
+        ObjectNode categoryTrends = financialAnalyticsService.getCategoryTrendVisualization(user);
         
-        List<FinancialNudge> unreadNudges = financialNudgeService.getUnreadNudges(user);
+        // 3. Year-End Savings Projection
+        SavingsProjection savingsProjection = savingsProjectionService.calculateYearEndSavings(user);
+        
+        // 4. Weekend Overspending
+        List<WeekendOverspending> weekendOverspending = weekendOverspendingService.detectWeekendOverspending(user);
+        
+        // 5. Salary Week Analysis
+        SalaryWeekAnalysis salaryWeekAnalysis = salaryWeekService.analyzeSalaryWeek(user);
+        List<SalaryWeekAnalysis> salaryWeekAnomalies = salaryWeekService.getAnomalies(user);
+        
+        // 6. Month-End Scarcity
+        MonthEndScarcity monthEndScarcity = monthEndScarcityService.detectMonthEndScarcity(user);
         
         model.addAttribute("user", user);
-        model.addAttribute("patterns", patterns);
-        model.addAttribute("trends", trends.getTrends());
-        model.addAttribute("spikes", trends.getSpikes());
-        model.addAttribute("dips", trends.getDips());
-        model.addAttribute("predictions", predictions);
-        model.addAttribute("nudges", nudges);
-        model.addAttribute("unreadNudges", unreadNudges);
-        model.addAttribute("unreadCount", unreadNudges.size());
+        model.addAttribute("categoryAlerts", categoryAlerts);
+        model.addAttribute("moneyLeaks", moneyLeaks);
+        model.addAttribute("regularInvestments", regularInvestments);
+        model.addAttribute("regularExpenses", regularExpenses);
+        model.addAttribute("groceryVsEatingOut", groceryVsEatingOut);
+        model.addAttribute("investmentTracking", investmentTracking);
+        model.addAttribute("subscriptions", subscriptions);
+        model.addAttribute("categoryTrends", categoryTrends);
+        model.addAttribute("savingsProjection", savingsProjection);
+        model.addAttribute("weekendOverspending", weekendOverspending);
+        model.addAttribute("salaryWeekAnomalies", salaryWeekAnomalies);
+        model.addAttribute("monthEndScarcity", monthEndScarcity);
         
         return "guidance_dashboard";
     }
 
+
+    // ========== New Financial Guidance Features ==========
+
     /**
-     * API endpoint to refresh patterns
+     * Detect and get category overspending alerts
      */
-    @PostMapping("/patterns/refresh")
+    @PostMapping("/category-overspending/detect")
     @ResponseBody
-    public String refreshPatterns(@RequestParam Long userId) {
+    public List<CategoryOverspendingAlert> detectCategoryOverspending(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        spendingPatternService.refreshPatterns(user);
-        return "Patterns refreshed successfully";
+        return categoryOverspendingService.detectOverspending(user);
     }
 
-    /**
-     * API endpoint to generate nudges
-     */
-    @PostMapping("/nudges/generate")
+    @GetMapping("/category-overspending")
     @ResponseBody
-    public String generateNudges(@RequestParam Long userId) {
+    public List<CategoryOverspendingAlert> getCategoryOverspending(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        financialNudgeService.generateNudges(user);
-        return "Nudges generated successfully";
+        return categoryOverspendingService.getActiveAlerts(user);
     }
 
     /**
-     * API endpoint to mark nudge as read
+     * Detect and get top 3 money leaks
      */
-    @PostMapping("/nudges/{nudgeId}/read")
+    @PostMapping("/money-leaks/detect")
     @ResponseBody
-    public String markNudgeAsRead(@PathVariable Long nudgeId) {
-        financialNudgeService.markAsRead(nudgeId);
-        return "Nudge marked as read";
-    }
-
-    /**
-     * API endpoint to dismiss nudge
-     */
-    @PostMapping("/nudges/{nudgeId}/dismiss")
-    @ResponseBody
-    public String dismissNudge(@PathVariable Long nudgeId) {
-        financialNudgeService.dismissNudge(nudgeId);
-        return "Nudge dismissed";
-    }
-
-    /**
-     * Get patterns API
-     */
-    @GetMapping("/patterns")
-    @ResponseBody
-    public List<SpendingPattern> getPatterns(@RequestParam Long userId) {
+    public List<MoneyLeak> detectMoneyLeaks(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        return spendingPatternService.getActivePatterns(user);
+        return moneyLeakService.detectMoneyLeaks(user);
+    }
+
+    @GetMapping("/money-leaks")
+    @ResponseBody
+    public List<MoneyLeak> getMoneyLeaks(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return moneyLeakService.getTopMoneyLeaks(user);
     }
 
     /**
-     * Get predictions API
+     * Calculate and get year-end savings projection
      */
-    @GetMapping("/predictions")
+    @PostMapping("/savings-projection/calculate")
     @ResponseBody
-    public List<SpendingPrediction> getPredictions(
-            @RequestParam Long userId,
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
+    public SavingsProjection calculateSavingsProjection(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        
-        if (startDate == null) {
-            startDate = LocalDate.now().withDayOfMonth(1).plusMonths(1);
-        }
-        if (endDate == null) {
-            endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-        }
-        
-        return spendingPredictionService.predictFutureSpending(user, startDate, endDate);
+        return savingsProjectionService.calculateYearEndSavings(user);
+    }
+
+    @GetMapping("/savings-projection")
+    @ResponseBody
+    public SavingsProjection getSavingsProjection(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return savingsProjectionService.getLatestProjection(user);
     }
 
     /**
-     * Get nudges API
+     * Detect and get weekend overspending
      */
-    @GetMapping("/nudges")
+    @PostMapping("/weekend-overspending/detect")
     @ResponseBody
-    public List<FinancialNudge> getNudges(@RequestParam Long userId) {
+    public List<WeekendOverspending> detectWeekendOverspending(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        return financialNudgeService.getActiveNudges(user);
+        return weekendOverspendingService.detectWeekendOverspending(user);
+    }
+
+    @GetMapping("/weekend-overspending")
+    @ResponseBody
+    public List<WeekendOverspending> getWeekendOverspending(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return weekendOverspendingService.getActiveAlerts(user);
     }
 
     /**
-     * Get overspending risks API
+     * Analyze salary week spending
      */
-    @GetMapping("/risks")
+    @PostMapping("/salary-week/analyze")
     @ResponseBody
-    public List<SpendingPrediction> getOverspendingRisks(@RequestParam Long userId) {
+    public SalaryWeekAnalysis analyzeSalaryWeek(@RequestParam Long userId) {
         User user = userService.getUserById(userId);
-        return spendingPredictionService.getOverspendingRisks(user);
+        return salaryWeekService.analyzeSalaryWeek(user);
+    }
+
+    @GetMapping("/salary-week/anomalies")
+    @ResponseBody
+    public List<SalaryWeekAnalysis> getSalaryWeekAnomalies(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return salaryWeekService.getAnomalies(user);
+    }
+
+    /**
+     * Detect month-end scarcity behavior
+     */
+    @PostMapping("/month-end-scarcity/detect")
+    @ResponseBody
+    public MonthEndScarcity detectMonthEndScarcity(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return monthEndScarcityService.detectMonthEndScarcity(user);
+    }
+
+    @GetMapping("/month-end-scarcity")
+    @ResponseBody
+    public MonthEndScarcity getMonthEndScarcity(@RequestParam Long userId) {
+        User user = userService.getUserById(userId);
+        return monthEndScarcityService.getLatestAnalysis(user);
     }
 
     // Helper method - in production, get from session/authentication

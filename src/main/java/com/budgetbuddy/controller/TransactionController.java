@@ -96,13 +96,9 @@ public class TransactionController {
     public String saveTransaction(@ModelAttribute Transaction transaction,
                                   @RequestParam(value = "user", required = false) Long userId,
                                   Model model) {
-        logger.info("Entering saveTransaction method with transaction: {}", transaction);
-        logger.info("Received userId parameter: {}", userId);
-        logger.info("🔍 DEBUG: Transaction narration value: '{}' (null={}, empty={})", 
-            transaction.getNarration(), 
-            transaction.getNarration() == null,
-            transaction.getNarration() != null && transaction.getNarration().trim().isEmpty());
-        logger.info("🔍 DEBUG: categorizationService is null: {}", categorizationService == null);
+        logger.info("Entering saveTransaction method");
+        logger.debug("Received userId parameter: {}", userId);
+        logger.debug("Transaction has narration field");
         long startTime = System.currentTimeMillis();
         try {
             // Handle user binding - convert userId to User object
@@ -110,7 +106,7 @@ public class TransactionController {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
                 transaction.setUser(user);
-                logger.info("Set user for transaction: {}", user);
+                logger.debug("Set user for transaction");
             } else if (transaction.getUser() != null && transaction.getUser().getId() != null) {
                 // If user object has ID but wasn't properly bound, fetch it
                 User user = userRepository.findById(transaction.getUser().getId())
@@ -131,7 +127,7 @@ public class TransactionController {
             // Set full prediction (category, transaction_type, intent, confidence) if narration exists
             long inferenceStartTime = System.currentTimeMillis();
             if (transaction.getNarration() != null && !transaction.getNarration().trim().isEmpty()) {
-                logger.info("Calling categorization for narration: '{}'", transaction.getNarration());
+                logger.debug("Calling categorization for transaction");
                 try {
                     LocalModelInferenceService.PredictionResult prediction = 
                         categorizationService.getFullPrediction(transaction.getNarration());
@@ -148,18 +144,17 @@ public class TransactionController {
                     transaction.setPredictedTransactionType(prediction.getTransactionType());
                     transaction.setPredictedIntent(prediction.getIntent());
                     transaction.setPredictionConfidence(prediction.getConfidence());
+                    transaction.setPredictionReason(prediction.getReason());
                     long inferenceTime = System.currentTimeMillis() - inferenceStartTime;
-                    logger.info("✅ Prediction result: category={}, subcategory={}, type={}, intent={}, confidence={}, time={}ms", 
-                        prediction.getPredictedCategory(), prediction.getPredictedSubcategory(), 
-                        prediction.getTransactionType(), prediction.getIntent(), prediction.getConfidence(), inferenceTime);
+                    logger.debug("✅ Prediction completed: category={}, confidence={}, time={}ms", 
+                        prediction.getPredictedCategory(), prediction.getConfidence(), inferenceTime);
                 } catch (Exception e) {
-                    logger.error("❌ Failed to predict category for transaction '{}': {}", 
-                        transaction.getNarration(), e.getMessage(), e);
+                    logger.error("❌ Failed to predict category: {}", e.getMessage(), e);
                     transaction.setPredictedCategory("Uncategorized");
                     transaction.setPredictedSubcategory(null);
                 }
             } else {
-                logger.warn("⚠️ Narration is null or empty, skipping categorization");
+                logger.warn("⚠️ Narration field is empty, skipping categorization");
             }
             
             transactionService.saveTransaction(transaction);
@@ -358,8 +353,8 @@ public class TransactionController {
                                      Model model,
                                      RedirectAttributes redirectAttributes) {
 
-        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}, predictedCategory: {}, predictedSubcategory: {}, amount: {} {}, narration: {}",
-                month, year, userId, category, predictedCategory, predictedSubcategory, amountOperator, amountValue, narration);
+        logger.info("Entering filterTransactions method with month: {}, year: {}, userId: {}, category: {}, predictedCategory: {}, predictedSubcategory: {}, amount: {} {}",
+                month, year, userId, category, predictedCategory, predictedSubcategory, amountOperator, amountValue);
         List<User> users = userRepository.findAll();
         model.addAttribute("users", users);
         model.addAttribute("predictedCategories", transactionService.getDistinctPredictedCategories());
@@ -386,9 +381,9 @@ public class TransactionController {
             // Sanitize narration (trim whitespace)
             String narrationValue = (narration != null && !narration.trim().isEmpty()) ? narration.trim() : null;
 
-            // Log the adjusted values
-            logger.debug("Processed month: {}, year: {}, amount: {} {}, narration: {}",
-                    monthValue, yearValue, validAmountOperator, amountValue, narrationValue);
+            // Log the adjusted values (without narration data)
+            logger.debug("Processed month: {}, year: {}, amount: {} {}",
+                    monthValue, yearValue, validAmountOperator, amountValue);
             
             // Call the service to filter transactions
             List<Transaction> transactions = transactionService.filterTransactions(
@@ -418,14 +413,14 @@ public class TransactionController {
             if (transactions.isEmpty()) {
                 logger.info("No transactions found for the given filters.");
             } else {
-                logger.debug("Filtered {} transactions for month: {}, year: {}, userId: {}, category: {}, amount: {} {}, narration: {}",
-                        transactions.size(), month, year, userId, category, amountOperator, amountValue, narration);
+                logger.debug("Filtered {} transactions for month: {}, year: {}, userId: {}, category: {}, amount: {} {}",
+                        transactions.size(), month, year, userId, category, amountOperator, amountValue);
             }
 
         } catch (Exception e) {
             // Log the error with exception details for debugging
-            logger.error("Error occurred while filtering transactions: month={}, year={}, userId={}, category={}, amount={} {}, narration={}. Exception: {}",
-                    month, year, userId, category, amountOperator, amountValue, narration, e.getMessage(), e);
+            logger.error("Error occurred while filtering transactions: month={}, year={}, userId={}, category={}, amount={} {}. Exception: {}",
+                    month, year, userId, category, amountOperator, amountValue, e.getMessage(), e);
         }
 
         logger.info("Exiting filterTransactions method");
@@ -580,13 +575,132 @@ public class TransactionController {
         logger.debug("Redirect URL: {}", redirectUrl);
         return redirectUrl;
     }
+    
+    /**
+     * Get all categories from categories.yml for dropdown
+     * Uses Python script to parse YAML properly
+     */
+    @GetMapping("/categories-list")
+    @ResponseBody
+    public ResponseEntity<List<String>> getCategoriesList() {
+        try {
+            List<String> categories = new ArrayList<>();
+            String projectRoot = System.getProperty("user.dir");
+            String scriptPath = "mybudget-ai/get_categories.py";
+            if (!new java.io.File(scriptPath).isAbsolute()) {
+                scriptPath = new java.io.File(projectRoot, scriptPath).getAbsolutePath();
+            }
+            
+            // Call Python script to parse YAML
+            String[] command = {"python3", "-u", scriptPath};
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(new java.io.File(projectRoot));
+            Process process = pb.start();
+            
+            // Read output (JSON array of categories)
+            StringBuilder output = new StringBuilder();
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line);
+                }
+            }
+            
+            int exitCode = process.waitFor();
+            if (exitCode == 0 && output.length() > 0) {
+                // Parse JSON array
+                ObjectMapper mapper = new ObjectMapper();
+                categories = mapper.readValue(output.toString(), 
+                    mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+                java.util.Collections.sort(categories);
+                logger.info("Loaded {} categories from YAML", categories.size());
+                return ResponseEntity.ok(categories);
+            } else {
+                logger.warn("Failed to load categories from YAML. Exit code: {}", exitCode);
+                return ResponseEntity.ok(categories);
+            }
+        } catch (Exception e) {
+            logger.error("Error getting categories list: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(new ArrayList<>());
+        }
+    }
+    
+    /**
+     * Add a correction for a transaction's predicted category.
+     * Saves the correction to user_corrections.json for offline mode.
+     */
+    @PostMapping("/add-correction")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> addCorrection(
+            @RequestParam Long transactionId,
+            @RequestParam String category) {
+        try {
+            logger.info("Adding correction for transaction ID: {} with category: {}", transactionId, category);
+            
+            Transaction transaction = transactionService.getTransactionById(transactionId);
+            if (transaction == null) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", "Transaction not found"));
+            }
+            
+            String narration = transaction.getNarration();
+            
+            if (narration == null || narration.trim().isEmpty()) {
+                return ResponseEntity.status(400).body(Map.of("success", false, "message", "Transaction narration is empty"));
+            }
+            
+            // Get user ID and transaction ID for Efficient Mode cloud sync
+            Long userId = transaction.getUser() != null ? transaction.getUser().getId() : null;
+            Long txnId = transaction.getId();
+            
+            // Add correction to user_corrections.json file (for model retraining)
+            // This writes to mybudget-ai/user_corrections.json
+            logger.info("📝 Adding correction to user_corrections.json: '{}' -> '{}'", narration.substring(0, Math.min(50, narration.length())), category);
+            boolean success = transactionService.addCorrection(narration, category, userId, txnId);
+            
+            if (success) {
+                // Update both predicted category and category name (so UI reflects immediately)
+                transaction.setPredictedCategory(category);
+                transaction.setCategoryName(category);  // Update categoryName so UI shows the correction
+                transactionService.saveTransaction(transaction);
+                
+                logger.info("✅ Correction saved to user_corrections.json and transaction updated in database");
+                logger.info("   JSON file: mybudget-ai/user_corrections.json");
+                logger.info("   Transaction ID: {}, Category: {}", txnId, category);
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "✅ Correction saved! The transaction category has been updated and saved to user_corrections.json for model retraining.",
+                    "updatedCategory", category,
+                    "transactionId", txnId
+                ));
+            } else {
+                return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "❌ Failed to save correction. Please try again."
+                ));
+            }
+        } catch (Exception e) {
+            logger.error("❌ Error adding correction: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "❌ Error: " + e.getMessage()
+            ));
+        }
+    }
 
 
     // 🔁 Refresh all predictions
     @PostMapping("/refresh-categories")
     public ResponseEntity<Map<String, String>> refreshAllCategories() {
-        categorizationService.refreshPredictionsForAll();
-        return ResponseEntity.ok(Map.of("message", "✅ All transaction categories refreshed successfully!"));
+        try {
+            logger.info("🔄 Refresh categories endpoint called");
+            categorizationService.refreshPredictionsForAll();
+            logger.info("✅ Refresh categories completed successfully");
+            return ResponseEntity.ok(Map.of("message", "✅ All transaction categories refreshed successfully!"));
+        } catch (Exception e) {
+            logger.error("❌ Error refreshing categories: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("message", "❌ Error refreshing categories: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/refresh-category/{id}")

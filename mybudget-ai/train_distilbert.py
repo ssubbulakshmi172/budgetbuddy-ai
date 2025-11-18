@@ -41,7 +41,7 @@ from transformers import (
 from torch.optim import AdamW
 
 # ---------- Configuration ----------
-DATA_FILE = "transactions_distilbert.csv"  # Should have: narration, transaction_type, category, intent
+DATA_FILE = "transactions_10k_dataset.csv"  # Should have: narration, transaction_type, category, intent
 SYNTHETIC_DATA_FILE = "transactions_synthetic.csv"  # Additional synthetic dataset
 ADDITIONAL_DATA_FILES = [
     "transactions_maximal.csv",  # Maximal merged dataset (optional)
@@ -50,6 +50,8 @@ ADDITIONAL_DATA_FILES = [
 USE_SYNTHETIC_DATA = True  # Set to True to merge real + synthetic data
 USE_ADDITIONAL_FILES = False  # Set to True to merge additional CSV files
 USE_PREPROCESSING = True  # Set to True to preprocess UPI narrations
+USE_CORRECTIONS = True  # Set to True to include user corrections in training
+CORRECTIONS_FILE = "corrections_for_training.csv"  # User corrections CSV file
 TAXONOMY_FILE = "categories.yml"  # Fallback taxonomy file
 MODELS_DIR = "models"
 REPORTS_DIR = "reports"
@@ -526,17 +528,50 @@ def load_and_merge_datasets(real_data_file: str, synthetic_data_file: Optional[s
 # ---------- Load User Corrections ----------
 def load_corrections(corrections_file: str = CORRECTIONS_FILE) -> Optional[pd.DataFrame]:
     """
-    Load user corrections from CSV file.
+    Load user corrections from CSV or JSON file.
     
-    Expected format:
-    - narration: Transaction description
-    - category: User-corrected category
-    - predicted_category: Original AI prediction (optional)
-    - confidence: AI confidence score (optional)
+    Supports both formats:
+    - CSV: narration, category, predicted_category (optional), confidence (optional)
+    - JSON: Array of objects with narration, category, timestamp, userId (optional), transactionId (optional)
     
     Returns:
         DataFrame with corrections, or None if file doesn't exist
     """
+    # Check for JSON file first (user_corrections.json)
+    json_file = "user_corrections.json"
+    if os.path.exists(json_file):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    corrections_data = json.loads(content)
+                    if isinstance(corrections_data, list) and len(corrections_data) > 0:
+                        # Convert JSON to DataFrame
+                        df = pd.DataFrame(corrections_data)
+                        
+                        # Keep only required columns
+                        required_cols = ['narration', 'category']
+                        if all(col in df.columns for col in required_cols):
+                            df = df[required_cols].copy()
+                            
+                            # Clean and validate
+                            df = df.dropna(subset=['narration', 'category'])
+                            df = df[df['narration'].str.len() >= 5]  # Filter very short narrations
+                            df = df.drop_duplicates(subset=['narration', 'category'])
+                            
+                            # Ensure required columns exist
+                            if 'transaction_type' not in df.columns:
+                                df['transaction_type'] = 'P2C'  # Default
+                            if 'intent' not in df.columns:
+                                df['intent'] = 'purchase'  # Default
+                            
+                            logging.info(f"✅ Loaded {len(df)} user corrections from {json_file}")
+                            print(f"   ✅ Loaded {len(df)} user corrections from JSON")
+                            return df
+        except Exception as e:
+            logging.warning(f"⚠️ Failed to load JSON corrections: {e}, trying CSV...")
+    
+    # Fallback to CSV file
     if not os.path.exists(corrections_file):
         logging.info(f"💡 No corrections file found: {corrections_file} (skipping)")
         return None
@@ -544,7 +579,7 @@ def load_corrections(corrections_file: str = CORRECTIONS_FILE) -> Optional[pd.Da
     try:
         df = pd.read_csv(corrections_file)
         logging.info(f"✅ Loaded {len(df)} user corrections from {corrections_file}")
-        print(f"   ✅ Loaded {len(df)} user corrections")
+        print(f"   ✅ Loaded {len(df)} user corrections from CSV")
         
         # Validate required columns
         if 'narration' not in df.columns or 'category' not in df.columns:

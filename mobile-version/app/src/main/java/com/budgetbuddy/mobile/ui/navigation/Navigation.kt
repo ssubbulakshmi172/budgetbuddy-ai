@@ -11,6 +11,10 @@ import com.budgetbuddy.mobile.ui.screens.UploadScreen
 import com.budgetbuddy.mobile.ui.screens.CategoriesScreen
 import com.budgetbuddy.mobile.ui.screens.HomeScreen
 import com.budgetbuddy.mobile.ui.screens.AddTransactionScreen
+import com.budgetbuddy.mobile.ui.screens.EditTransactionScreen
+import com.budgetbuddy.mobile.ui.screens.FinancialGuidanceScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -19,6 +23,10 @@ sealed class Screen(val route: String) {
     object Upload : Screen("upload")
     object Categories : Screen("categories")
     object AddTransaction : Screen("add_transaction")
+    object EditTransaction : Screen("edit_transaction/{transactionId}") {
+        fun createRoute(transactionId: Long) = "edit_transaction/$transactionId"
+    }
+    object FinancialGuidance : Screen("financial_guidance")
 }
 
 @Composable
@@ -47,6 +55,19 @@ fun Navigation(navController: NavHostController = rememberNavController()) {
         }
         composable(Screen.AddTransaction.route) {
             AddTransactionScreen(navController = navController)
+        }
+        composable(
+            route = Screen.EditTransaction.route,
+            arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val transactionId = backStackEntry.arguments?.getLong("transactionId") ?: 0L
+            EditTransactionScreen(
+                transactionId = transactionId,
+                navController = navController
+            )
+        }
+        composable(Screen.FinancialGuidance.route) {
+            FinancialGuidanceScreen(navController = navController)
         }
     }
 }
