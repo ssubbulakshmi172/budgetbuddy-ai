@@ -84,5 +84,20 @@ object ViewModelProvider {
         val app = context.applicationContext as BudgetBuddyApplication
         return app.mlService
     }
+    
+    fun getDataCleanupService(context: android.content.Context): com.budgetbuddy.mobile.service.DataCleanupService {
+        val app = context.applicationContext as BudgetBuddyApplication
+        val database = app.database
+        return com.budgetbuddy.mobile.service.DataCleanupService(
+            database.transactionDao(),
+            database.categoryOverspendingAlertDao(),
+            database.moneyLeakDao(),
+            database.savingsProjectionDao(),
+            database.weekendOverspendingDao(),
+            database.spendingPatternDao(),
+            database.spendingPredictionDao(),
+            database.financialNudgeDao()
+        )
+    }
 }
 

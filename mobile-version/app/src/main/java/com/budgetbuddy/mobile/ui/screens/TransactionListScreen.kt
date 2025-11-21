@@ -34,6 +34,7 @@ fun TransactionListScreen(
     val context = LocalContext.current
     val transactionRepository = VMProvider.getTransactionRepository(context)
     val userId = VMProvider.getUserId()
+    val dataCleanupService = remember { VMProvider.getDataCleanupService(context) }
     val viewModel: TransactionViewModel = viewModel(
         factory = TransactionViewModelFactory(transactionRepository, userId)
     )
@@ -151,14 +152,14 @@ fun TransactionListScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            viewModel.deleteAllTransactions()
+                            viewModel.deleteAllTransactions(dataCleanupService)
                             showDeleteAllDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Delete")
+                        Text("Delete All")
                     }
                 },
                 dismissButton = {

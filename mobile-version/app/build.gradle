@@ -21,12 +21,8 @@ android {
             useSupportLibrary true
         }
 
-        // PyTorch Mobile model configuration
-        ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
-        }
-        
         // Enable MultiDex (PyTorch Mobile exceeds 64K method limit)
+        // Note: ABI splits are configured in splits block below
         multiDexEnabled true
         
         // Room schema export directory
@@ -34,6 +30,15 @@ android {
             annotationProcessorOptions {
                 arguments += ["room.schemaLocation": "$projectDir/schemas".toString()]
             }
+        }
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+            universalApk false // Set to true if you want a universal APK as well
         }
     }
 

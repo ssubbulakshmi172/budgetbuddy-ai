@@ -85,15 +85,21 @@ class TransactionViewModel(
         loadTransactions()
     }
     
-    fun deleteAllTransactions() {
+    fun deleteAllTransactions(dataCleanupService: com.budgetbuddy.mobile.service.DataCleanupService? = null) {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true, error = null) }
                 
-                // Delete all transactions for this user
-                transactionRepository.deleteAllTransactions(userId)
-                
-                android.util.Log.d("TransactionViewModel", "✅ Deleted all transactions for user $userId")
+                if (dataCleanupService != null) {
+                    // Use DataCleanupService to clear all transactions AND financial guidance data
+                    // This matches Spring Boot's clearAllTransactionAndGuidanceData behavior
+                    dataCleanupService.clearAllTransactionAndGuidanceData(userId)
+                    android.util.Log.d("TransactionViewModel", "✅ Deleted all transactions and financial guidance data for user $userId")
+                } else {
+                    // Fallback: just delete transactions (for backward compatibility)
+                    transactionRepository.deleteAllTransactions(userId)
+                    android.util.Log.d("TransactionViewModel", "✅ Deleted all transactions for user $userId")
+                }
                 
                 // Manually update state to empty list immediately
                 _state.update { 
