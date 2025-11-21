@@ -26,6 +26,7 @@ BudgetBuddy Mobile is an Android app that provides on-device transaction categor
 - Category assignment and editing
 - Filter and search transactions
 - Transaction history view
+- Delete all transactions (clears transactions + financial guidance data)
 
 ✅ **Offline-First**
 - All data stored locally (Room Database)

@@ -97,6 +97,7 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Offline-First**: Works without internet connectivity
 - **Local Inference**: No external API dependencies, ensuring privacy and zero recurring costs
 - **Virtual Environment Setup**: Mobile app uses Python venv for model conversion (ARM64 support for Apple Silicon)
+- **Feature Parity**: Mobile app delete-all transactions feature matches Spring Boot's clear-all-data behavior (clears transactions + financial guidance data)
 
 ## 📊 Performance Metrics
 
@@ -651,5 +652,5 @@ This is a competition project. For questions or issues, please refer to the subm
 
 ---
 
-**Last Updated**: 2025-01-21  
-**Version**: 2.2.0 (2025-01-21) - Cleaned & Optimized
+**Last Updated**: 2025-01-22  
+**Version**: 2.3.0 (2025-01-22) - Mobile Delete All Transactions Feature
