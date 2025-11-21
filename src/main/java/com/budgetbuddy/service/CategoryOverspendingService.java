@@ -120,16 +120,31 @@ public class CategoryOverspendingService {
 
             // Only create alert if it's medium risk or higher
             if (alertLevel.ordinal() >= CategoryOverspendingAlert.AlertLevel.MEDIUM.ordinal()) {
-                CategoryOverspendingAlert alert = new CategoryOverspendingAlert();
-                alert.setUser(user);
-                alert.setCategory(category);
+                // Check if alert already exists for this user, category, and month
+                CategoryOverspendingAlert existingAlert = alertRepository.findByUserAndCategoryAndMonth(
+                    user, category, currentMonth
+                );
+                
+                CategoryOverspendingAlert alert;
+                if (existingAlert != null) {
+                    // Update existing alert
+                    alert = existingAlert;
+                    logger.debug("Updating existing alert for category: {}, month: {}", category, currentMonth);
+                } else {
+                    // Create new alert
+                    alert = new CategoryOverspendingAlert();
+                    alert.setUser(user);
+                    alert.setCategory(category);
+                    alert.setMonth(currentMonth);
+                }
+                
+                // Update all fields
                 alert.setAlertLevel(alertLevel);
                 alert.setCurrentAmount(currentAmount);
                 alert.setHistoricalAvg(historicalAvg);
                 alert.setStandardDeviation(stdDev);
                 alert.setPercentageIncrease(percentageIncrease);
                 alert.setProjectedMonthly(projectedMonthly);
-                alert.setMonth(currentMonth);
                 alert.setDaysElapsed(daysElapsed);
                 alert.setIsActive(true);
 
@@ -137,7 +152,7 @@ public class CategoryOverspendingService {
             }
         }
 
-        // Save alerts
+        // Save or update alerts (prevent duplicates)
         for (CategoryOverspendingAlert alert : alerts) {
             alertRepository.save(alert);
         }
@@ -177,10 +192,33 @@ public class CategoryOverspendingService {
     }
 
     /**
-     * Get active alerts for a user
+     * Get active alerts for a user (only latest alert per category per month to avoid duplicates)
      */
     public List<CategoryOverspendingAlert> getActiveAlerts(User user) {
-        return alertRepository.findByUserAndIsActiveTrue(user);
+        List<CategoryOverspendingAlert> allActive = alertRepository.findByUserAndIsActiveTrue(user);
+        YearMonth currentMonth = YearMonth.now();
+        
+        // Group by category and get only the latest alert for each category
+        Map<String, CategoryOverspendingAlert> latestByCategory = new LinkedHashMap<>();
+        
+        for (CategoryOverspendingAlert alert : allActive) {
+            String category = alert.getCategory();
+            YearMonth alertMonth = alert.getMonth();
+            
+            // Only include alerts for current month
+            if (alertMonth != null && alertMonth.equals(currentMonth)) {
+                CategoryOverspendingAlert existing = latestByCategory.get(category);
+                
+                // Keep the one with highest alert level or most recent
+                if (existing == null || 
+                    alert.getCreatedAt() != null && existing.getCreatedAt() != null &&
+                    alert.getCreatedAt().isAfter(existing.getCreatedAt())) {
+                    latestByCategory.put(category, alert);
+                }
+            }
+        }
+        
+        return new ArrayList<>(latestByCategory.values());
     }
 
     /**

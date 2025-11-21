@@ -304,7 +304,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-**Last Updated:** November 2025  
-**Version:** 1.2.0  
+**Last Updated:** 2025-01-21  
+**Version:** 1.2.0 (2025-01-21)  
 **Status:** Production Ready
 

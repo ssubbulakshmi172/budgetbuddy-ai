@@ -68,10 +68,9 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 ### Financial Guidance System (Rule-Based Analytics)
 - **Top 3 Money Leaks**: Automatically detects and ranks top spending leaks (subscriptions, coffee effect, ATM spikes, friend-covering, high-impact one-time, emotional spending)
 - **Category Overspending Alerts**: Flags categories exceeding historical spending patterns
-- **Year-End Savings Projection**: Calculates projected savings in best/likely/worst scenarios
-- **Weekend Overspending**: Compares weekend vs weekday spending patterns
-- **Salary Week Analysis**: Detects spending spikes during salary weeks
-- **Month-End Scarcity**: Identifies reduced spending behavior at month-end
+- **Year-End Savings Projection**: Calculates projected savings in best/likely/worst scenarios (includes investments)
+- **Weekend Overspending**: Compares weekend vs weekday spending patterns (excludes investments)
+- **Unusual Spending Patterns**: ML-based anomaly detection using Isolation Forest
 - **Grocery vs Eating-Out**: Analyzes food spending patterns and suggests improvements
 - **Investment Tracking**: Tracks monthly and cumulative investment totals
 - **Subscriptions Analysis**: Identifies recurring non-investment subscriptions
@@ -158,24 +157,20 @@ budgetbuddy-ai/
 │   │   ├── CategoryOverspendingService.java   # Category overspending alerts
 │   │   ├── SavingsProjectionService.java      # Year-end savings projection
 │   │   ├── WeekendOverspendingService.java   # Weekend spending analysis
-│   │   ├── SalaryWeekService.java            # Salary week analysis
-│   │   ├── MonthEndScarcityService.java       # Month-end scarcity detection
 │   │   └── FinancialAnalyticsService.java    # Rule-based analytics (grocery vs dining, investments, subscriptions, trends)
 │   ├── model/                         # JPA entities
 │   └── repository/                    # Data access layer
 ├── mybudget-ai/                       # ML service
 │   ├── train_distilbert.py            # Model training (with corrections support)
-│   ├── inference_local.py             # Local inference (with user corrections)
-│   ├── distilbert_inference.py        # DistilBERT model inference
-│   ├── export_corrections.py          # Export user corrections
-│   ├── retrain_with_feedback.py       # Retrain with bias safeguards
-│   ├── bias_monitoring.py             # Bias drift detection
-│   ├── dataset_maintenance.py         # Dataset maintenance utilities
-│   ├── preprocessing_utils.py         # Text preprocessing utilities
-│   ├── add_correction.py              # Add user corrections
-│   ├── get_categories.py              # Extract categories from YAML
-│   ├── categories.yml                 # Category taxonomy
-│   └── models/                        # Trained models
+│   ├── inference_local.py            # Local inference (with user corrections)
+│   ├── anomaly_detection.py          # ML-based anomaly detection
+│   ├── preprocessing_utils.py        # Text preprocessing utilities
+│   ├── preprocess_narration.py       # Narration preprocessing script
+│   ├── add_correction.py             # Add user corrections
+│   ├── get_categories.py             # Extract categories from YAML
+│   ├── categories.yml                # Category taxonomy
+│   ├── user_corrections.json         # User corrections storage
+│   └── models/                       # Trained models
 │       └── distilbert_multitask_latest/
 ├── mobile-version/                    # Android app
 │   ├── app/                           # Kotlin + Compose
@@ -452,10 +447,9 @@ Started BudgetBuddyApplication in X.XXX seconds
    - **Financial Guidance Dashboard**: http://localhost:8080/guidance/dashboard
      - View Top 3 Money Leaks
      - Category Overspending Alerts
-     - Year-End Savings Projection
-     - Weekend Overspending Analysis
-     - Salary Week Analysis
-     - Month-End Scarcity Detection
+     - Year-End Savings Projection (includes investments)
+     - Weekend Overspending Analysis (excludes investments)
+     - Unusual Spending Patterns (ML-based anomaly detection)
      - Grocery vs Eating-Out Patterns
      - Investment Tracking
      - Subscriptions Analysis
@@ -599,31 +593,13 @@ python3 inference_local.py "UPI-CHILD CARE PHARMACY-VYAPAR.171813425600@HDFCBANK
 
 ## 🔄 Feedback & Retraining Workflow
 
-### Export User Corrections
+### Retrain with Corrections
 ```bash
 cd mybudget-ai
 source venv/bin/activate
-# Export from local MySQL database (default, privacy-first)
-python3 export_corrections.py --min-confidence 0.5
 
-# Alternative: Export from CSV files
-python3 export_corrections.py --source csv --min-confidence 0.5
-```
-
-### Retrain with Corrections
-```bash
 # Corrections are automatically included in training if corrections_for_training.csv exists
 python3 train_distilbert.py
-
-# Or use dedicated retraining script with bias safeguards
-python3 retrain_with_feedback.py --corrections-file corrections_for_training.csv
-```
-
-### Monitor Bias
-```bash
-python3 bias_monitoring.py \
-  --baseline-file reports/distilbert_metrics_20251103_171953.json \
-  --current-file reports/distilbert_metrics_20251107_205746.json
 ```
 
 ## 🎯 P2P Transaction Detection
@@ -675,5 +651,5 @@ This is a competition project. For questions or issues, please refer to the subm
 
 ---
 
-**Last Updated**: November 2025  
-**Version**: 2.1 (With Feedback & Continuous Learning)
+**Last Updated**: 2025-01-21  
+**Version**: 2.2.0 (2025-01-21) - Cleaned & Optimized

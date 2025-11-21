@@ -5,16 +5,25 @@ import com.budgetbuddy.model.Transaction;
 import com.budgetbuddy.model.User;
 import com.budgetbuddy.repository.MoneyLeakRepository;
 import com.budgetbuddy.repository.TransactionRepository;
+import com.budgetbuddy.util.NarrationPreprocessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 @Service
 public class MoneyLeakService {
@@ -26,6 +35,12 @@ public class MoneyLeakService {
 
     @Autowired
     private MoneyLeakRepository moneyLeakRepository;
+
+    @Value("${python.command:mybudget-ai/venv/bin/python3}")
+    private String pythonCommand;
+
+    @Value("${python.inference.timeout:30}")
+    private int timeoutSeconds;
 
     private static final double SMALL_TRANSACTION_THRESHOLD = 200.0; // ₹200
     private static final int MIN_SUBSCRIPTION_OCCURRENCES = 3;
@@ -58,6 +73,29 @@ public class MoneyLeakService {
     }
     
     /**
+     * Check if a transaction category is salary/income (should be excluded from money leak detection).
+     * 
+     * Salary/Income transactions are not expenses - they represent money coming in.
+     * Based on categories.yml, the "Salary" category includes:
+     * - Salary & Income (wages, pay, paycheck, income, compensation, etc.)
+     * 
+     * @param category Category name (can be "Salary" or "Salary / Subcategory")
+     * @return true if category is salary/income, false otherwise
+     */
+    private boolean isSalaryCategory(String category) {
+        if (category == null || category.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Normalize: lowercase and trim whitespace
+        String normalized = category.toLowerCase().trim();
+        
+        // Check if category is exactly "Salary" or starts with "Salary /"
+        // This covers subcategories: "Salary / Salary & Income", etc.
+        return normalized.equals("salary") || normalized.startsWith("salary /");
+    }
+    
+    /**
      * Check if a transaction should be excluded from expense calculations.
      * A transaction is excluded if either its categoryName or predictedCategory is an investment.
      * 
@@ -67,6 +105,72 @@ public class MoneyLeakService {
     private boolean isInvestmentTransaction(Transaction transaction) {
         return isInvestmentCategory(transaction.getCategoryName()) || 
                isInvestmentCategory(transaction.getPredictedCategory());
+    }
+    
+    /**
+     * Check if a transaction is income/salary (should be excluded from money leak detection).
+     * Income transactions have positive amounts or contain salary/credit keywords in narration.
+     * 
+     * @param transaction Transaction to check
+     * @return true if transaction is income/salary, false otherwise
+     */
+    private boolean isIncomeTransaction(Transaction transaction) {
+        // Positive amounts are deposits/income (following amount convention)
+        if (transaction.getAmount() != null && transaction.getAmount() > 0) {
+            return true;
+        }
+        
+        // Check narration for income keywords (case-insensitive)
+        // This handles cases where salary might be incorrectly stored as negative
+        String narration = transaction.getNarration();
+        if (narration != null && !narration.trim().isEmpty()) {
+            String narrationUpper = narration.toUpperCase().trim();
+            
+            // Common income/salary patterns
+            // Match "SALARY CREDIT", "SALARY CREDIT SALARY", "SALARY DEPOSIT", etc.
+            if (narrationUpper.contains("SALARY") && 
+                (narrationUpper.contains("CREDIT") || 
+                 narrationUpper.contains("DEPOSIT") ||
+                 narrationUpper.contains("SALARY CREDIT") ||
+                 narrationUpper.matches(".*SALARY.*CREDIT.*"))) {
+                return true;
+            }
+            
+            // Match standalone "SALARY" if it's a credit/deposit pattern
+            if (narrationUpper.equals("SALARY") || 
+                narrationUpper.startsWith("SALARY ") ||
+                narrationUpper.contains(" SALARY")) {
+                // Additional check: if it contains credit/deposit keywords
+                if (narrationUpper.contains("CREDIT") || 
+                    narrationUpper.contains("DEPOSIT") ||
+                    narrationUpper.contains("INCOME")) {
+                    return true;
+                }
+            }
+            
+            // Match income-related keywords
+            if (narrationUpper.contains("INCOME") ||
+                (narrationUpper.contains("DEPOSIT") && narrationUpper.contains("SAL"))) {
+                return true;
+            }
+        }
+        
+        // Check category for salary/income (similar to investment category check)
+        String category = transaction.getCategoryName() != null ? transaction.getCategoryName() : 
+                         (transaction.getPredictedCategory() != null ? transaction.getPredictedCategory() : "");
+        if (isSalaryCategory(category)) {
+            return true;
+        }
+        
+        // Also check for income-related keywords in category (fallback)
+        if (category != null && !category.trim().isEmpty()) {
+            String categoryUpper = category.toUpperCase().trim();
+            if (categoryUpper.contains("INCOME") && !categoryUpper.contains("EXPENSE")) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -78,7 +182,7 @@ public class MoneyLeakService {
 
         List<MoneyLeak> leaks = new ArrayList<>();
 
-        // 1. Detect repeating subscriptions (non-investment)
+        // 1. Detect repeating subscriptions (non-investment, exclude income)
         leaks.addAll(detectRepeatingSubscriptions(user));
 
         // 2. Detect coffee-effect (small frequent purchases)
@@ -156,12 +260,13 @@ public class MoneyLeakService {
         List<MoneyLeak> regularSpending = new ArrayList<>();
         LocalDate sixMonthsAgo = LocalDate.now().minusMonths(6);
 
-        // Get all transactions (including investments)
+        // Get all transactions (including investments, but exclude income)
         List<Transaction> allTransactions = transactionRepository.findAll()
             .stream()
             .filter(t -> t.getUser().getId().equals(user.getId()))
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
             .filter(t -> t.getDate().isAfter(sixMonthsAgo))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         // Group by merchant pattern and amount (for recurring payments)
@@ -237,6 +342,7 @@ public class MoneyLeakService {
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
             .filter(t -> t.getDate().isAfter(sixMonthsAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         // Group by merchant pattern and amount
@@ -299,6 +405,7 @@ public class MoneyLeakService {
             .filter(t -> Math.abs(t.getAmount()) < SMALL_TRANSACTION_THRESHOLD)
             .filter(t -> t.getDate().isAfter(oneMonthAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         // Group by merchant pattern (similar merchant names)
@@ -358,6 +465,7 @@ public class MoneyLeakService {
                         t.getWithdrawalAmt() != null)
             .filter(t -> t.getDate().isAfter(sixMonthsAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         if (transactions.isEmpty()) {
@@ -466,6 +574,7 @@ public class MoneyLeakService {
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
             .filter(t -> t.getDate().isAfter(sixMonthsAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         // Detect P2P transactions that look like group expenses
@@ -520,7 +629,9 @@ public class MoneyLeakService {
                 "This suggests you're paying more than your share.",
                 totalOneSided, incidentCount, avgPerIncident
             ));
-            leak.setMerchantPattern("Friend/Group Expenses");
+            // Use a category-like pattern that can be filtered by predictedCategory
+            // The actual category might be "Social / Friends & Social Expenses" or similar
+            leak.setMerchantPattern("Social / Friends & Social Expenses");
             leak.setMonthlyAmount(monthlyAmount);
             leak.setAnnualAmount(annualAmount);
             leak.setTransactionCount(oneSidedTxs.size());
@@ -549,6 +660,7 @@ public class MoneyLeakService {
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
             .filter(t -> t.getDate().isAfter(threeMonthsAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .filter(t -> Math.abs(t.getAmount()) > 5000.0) // Large payments
             .collect(Collectors.toList());
 
@@ -607,6 +719,7 @@ public class MoneyLeakService {
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
             .filter(t -> t.getDate().isAfter(oneMonthAgo))
             .filter(t -> !isInvestmentTransaction(t))
+            .filter(t -> !isIncomeTransaction(t))  // Exclude income/salary transactions
             .collect(Collectors.toList());
 
         // Detect impulse buy patterns:
@@ -653,7 +766,8 @@ public class MoneyLeakService {
                 "Total: ₹%.0f in last month.",
                 impulseDays, totalImpulse
             ));
-            leak.setMerchantPattern("Food/Dining (Impulse)");
+            // Use actual category name that exists in database (without parenthetical parts)
+            leak.setMerchantPattern("Dining & Food");
             leak.setMonthlyAmount(monthlyAmount);
             leak.setAnnualAmount(annualAmount);
             leak.setTransactionCount(impulseTxs.size());
@@ -672,28 +786,8 @@ public class MoneyLeakService {
      * Extract merchant pattern from narration
      */
     public String extractMerchantPattern(String narration) {
-        if (narration == null || narration.isEmpty()) {
-            return "UNKNOWN";
-        }
-
-        // Remove UPI prefixes, IDs, etc.
-        String cleaned = narration.toUpperCase()
-            .replaceAll("UPI[^\\s]*", "")
-            .replaceAll("\\d+", "")
-            .replaceAll("[^A-Z\\s]", " ")
-            .trim();
-
-        // Take first 2-3 significant words
-        String[] words = cleaned.split("\\s+");
-        if (words.length > 0) {
-            StringBuilder pattern = new StringBuilder(words[0]);
-            if (words.length > 1) {
-                pattern.append(" ").append(words[1]);
-            }
-            return pattern.toString();
-        }
-
-        return "UNKNOWN";
+        // Use the utility class for consistent narration preprocessing
+        return NarrationPreprocessor.extractMerchantPattern(narration);
     }
 
     /**
@@ -701,6 +795,123 @@ public class MoneyLeakService {
      */
     public List<MoneyLeak> getTopMoneyLeaks(User user) {
         return moneyLeakRepository.findByUserAndRankIsNotNullOrderByRankAsc(user);
+    }
+
+    /**
+     * Detect anomalies using Isolation Forest (ML-based detection)
+     * Calls Python script for ML-powered anomaly detection
+     * 
+     * @param user User to analyze
+     * @return List of anomaly results (transaction_id, amount, date, category, narration, anomaly_score)
+     */
+    public List<Map<String, Object>> detectAnomalies(User user) {
+        logger.info("Detecting anomalies using Isolation Forest for user: {}", user.getId());
+
+        try {
+            String projectRoot = System.getProperty("user.dir");
+            String scriptPath = "mybudget-ai/anomaly_detection.py";
+            if (!Files.exists(Paths.get(projectRoot, scriptPath))) {
+                logger.warn("Anomaly detection script not found: {}", scriptPath);
+                return new ArrayList<>();
+            }
+
+            String scriptAbsolutePath = Paths.get(projectRoot, scriptPath).toAbsolutePath().toString();
+
+            // Build command
+            String[] command = {
+                pythonCommand,
+                "-u",  // Unbuffered mode
+                scriptAbsolutePath,
+                String.valueOf(user.getId())
+            };
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(false);
+            pb.directory(new java.io.File(projectRoot));
+
+            Process process = pb.start();
+            logger.info("Started anomaly detection Python process for user: {}", user.getId());
+
+            // Read stdout (JSON output)
+            StringBuilder output = new StringBuilder();
+            Thread stdoutReader = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.trim().startsWith("[") || line.trim().startsWith("{")) {
+                            output.append(line);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error reading Python stdout: {}", e.getMessage());
+                }
+            });
+            stdoutReader.setDaemon(true);
+            stdoutReader.start();
+
+            // Read stderr (warnings/errors)
+            StringBuilder errorOutput = new StringBuilder();
+            Thread errorReader = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        errorOutput.append(line).append("\n");
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error reading Python stderr: {}", e.getMessage());
+                }
+            });
+            errorReader.setDaemon(true);
+            errorReader.start();
+
+            // Wait for process with timeout
+            boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                logger.warn("Anomaly detection timeout after {} seconds", timeoutSeconds);
+                return new ArrayList<>();
+            }
+
+            stdoutReader.join(1000);
+            errorReader.join(1000);
+
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                logger.warn("Anomaly detection script exited with code: {}", exitCode);
+                if (errorOutput.length() > 0) {
+                    logger.warn("Python error: {}", errorOutput.toString());
+                }
+                return new ArrayList<>();
+            }
+
+            // Parse JSON output
+            String jsonOutput = output.toString().trim();
+            List<Map<String, Object>> anomalies = new ArrayList<>();
+
+            if (!jsonOutput.isEmpty() && jsonOutput.startsWith("[")) {
+                JSONArray resultArray = new JSONArray(jsonOutput);
+                for (int i = 0; i < resultArray.length(); i++) {
+                    JSONObject jsonResult = resultArray.getJSONObject(i);
+                    Map<String, Object> anomaly = new HashMap<>();
+                    anomaly.put("transaction_id", jsonResult.optLong("transaction_id", 0));
+                    anomaly.put("amount", jsonResult.optDouble("amount", 0.0));
+                    anomaly.put("date", jsonResult.optString("date", ""));
+                    anomaly.put("category", jsonResult.optString("category", "Unknown"));
+                    anomaly.put("intent", jsonResult.optString("intent", "unknown"));
+                    anomaly.put("narration", jsonResult.optString("narration", ""));
+                    anomaly.put("anomaly_score", jsonResult.optDouble("anomaly_score", 0.0));
+                    anomalies.add(anomaly);
+                }
+            }
+
+            return anomalies;
+
+        } catch (Exception e) {
+            logger.error("Error detecting anomalies: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 }
 

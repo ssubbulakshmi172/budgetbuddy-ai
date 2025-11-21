@@ -174,9 +174,9 @@
                                     <label class="text-muted small">Category:</label>
                                     <p class="mb-0">
                                         <span class="badge bg-primary" 
-                                              th:if="${savedTransaction.categoryName != null and !savedTransaction.categoryName.isEmpty()}"
-                                              th:text="${savedTransaction.categoryName}">Category</span>
-                                        <span class="badge bg-secondary" th:if="${savedTransaction.categoryName == null or savedTransaction.categoryName.isEmpty()}">Not Set</span>
+                                              th:if="${savedTransaction.predictedCategory != null and !savedTransaction.predictedCategory.isEmpty()}"
+                                              th:text="${savedTransaction.predictedCategory}">Category</span>
+                                        <span class="badge bg-secondary" th:if="${savedTransaction.predictedCategory == null or savedTransaction.predictedCategory.isEmpty()}">Not Set</span>
                                     </p>
                                 </div>
                                 <div class="col-md-4 mb-3">

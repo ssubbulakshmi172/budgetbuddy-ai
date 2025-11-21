@@ -9,6 +9,7 @@ import com.budgetbuddy.service.TransactionCategorizationService;
 import com.budgetbuddy.service.LocalModelInferenceService;
 import com.budgetbuddy.service.TransactionService;
 import com.budgetbuddy.service.UserService;
+import com.budgetbuddy.service.DataCleanupService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,9 @@ public class TransactionController {
 
     @Autowired
     private TransactionCategorizationService categorizationService;
+
+    @Autowired
+    private DataCleanupService dataCleanupService;
     
     /**
      * Log service injection status
@@ -327,10 +331,14 @@ public class TransactionController {
         try {
             List<User> users = userRepository.findAll();
             model.addAttribute("users", users);
-            model.addAttribute("categoriesKeywords", categoryKeywordService.getDistinctCategories());
-            // Add AI predicted distinct values
-            model.addAttribute("predictedCategories", transactionService.getDistinctPredictedCategories());
-            model.addAttribute("predictedSubcategories", transactionService.getDistinctPredictedSubcategories());
+            // Use predicted categories everywhere
+            List<String> predictedCategories = transactionService.getDistinctPredictedCategories();
+            List<String> predictedSubcategories = transactionService.getDistinctPredictedSubcategories();
+            logger.info("Found {} predicted categories and {} predicted subcategories", 
+                       predictedCategories != null ? predictedCategories.size() : 0,
+                       predictedSubcategories != null ? predictedSubcategories.size() : 0);
+            model.addAttribute("predictedCategories", predictedCategories != null ? predictedCategories : new ArrayList<>());
+            model.addAttribute("predictedSubcategories", predictedSubcategories != null ? predictedSubcategories : new ArrayList<>());
 
             model.addAttribute("transactions", new ArrayList<Transaction>());
         } catch (Exception e) {
@@ -341,7 +349,7 @@ public class TransactionController {
     }
 
     @GetMapping("/filter")
-    public String filterTransactions(@RequestParam(required = false) Month month,
+    public String filterTransactions(@RequestParam(required = false) String month,
                                      @RequestParam(required = false) Integer year,
                                      @RequestParam(required = false) Long userId,
                                      @RequestParam(required = false) String category, // Optional category filter
@@ -362,11 +370,77 @@ public class TransactionController {
 
         try {
             // Handle optional parameters and set default values where necessary
-            int monthValue = (month != null) ? month.getValue() : -1;  // Default to -1 for unspecified month
+            // Convert month parameter: can be numeric (1-12) or Month enum name (JANUARY, etc.)
+            int monthValue = -1;  // Default to -1 for unspecified month
+            Month monthEnum = null;
+            if (month != null && !month.trim().isEmpty()) {
+                try {
+                    // Try parsing as integer (1-12)
+                    int monthInt = Integer.parseInt(month.trim());
+                    if (monthInt >= 1 && monthInt <= 12) {
+                        monthValue = monthInt;
+                        monthEnum = Month.of(monthInt);
+                    }
+                } catch (NumberFormatException e) {
+                    // Try parsing as Month enum name
+                    try {
+                        monthEnum = Month.valueOf(month.trim().toUpperCase());
+                        monthValue = monthEnum.getValue();
+                    } catch (IllegalArgumentException ex) {
+                        logger.warn("Invalid month parameter: {}", month);
+                    }
+                }
+            }
             int yearValue = (year != null) ? year : -1;
-            String categoryValue = (category != null && !category.isEmpty()) ? category : null;
-            String predictedCategoryValue = (predictedCategory != null && !predictedCategory.isEmpty() && !predictedCategory.equals("ALL")) ? predictedCategory : null;
-            String predictedSubcategoryValue = (predictedSubcategory != null && !predictedSubcategory.isEmpty() && !predictedSubcategory.equals("ALL")) ? predictedSubcategory : null;
+            // Deprecated: category parameter kept for backward compatibility, but we use predictedCategory everywhere
+            String categoryValue = null; // Not used anymore, we use predictedCategory
+            // URL decode predictedCategory if needed (Spring should auto-decode, but ensure it's trimmed)
+            String predictedCategoryValue = null;
+            if (predictedCategory != null && !predictedCategory.trim().isEmpty() && !predictedCategory.trim().equals("ALL")) {
+                // Spring auto-decodes URL parameters, but handle any remaining encoding issues
+                // Replace + with space (URL encoding for space)
+                String decoded = predictedCategory.trim().replace("+", " ");
+                // Additional URL decoding if needed (Spring should handle this, but just in case)
+                try {
+                    decoded = java.net.URLDecoder.decode(decoded, "UTF-8");
+                } catch (Exception e) {
+                    // If decoding fails, use the original
+                    logger.debug("URL decoding failed, using original: {}", e.getMessage());
+                }
+                // Use exact value from URL - query will handle parentheses removal for matching
+                predictedCategoryValue = decoded.trim();
+                logger.info("Filtering by predictedCategory: '{}' (original: '{}', URL decoded)", predictedCategoryValue, predictedCategory);
+                
+                // Debug: Check what categories exist in database
+                List<String> allCategories = transactionService.getDistinctPredictedCategories();
+                logger.info("Available predicted categories in database (total: {}): {}", allCategories.size(), allCategories);
+                
+                // Make final reference for lambda
+                final String finalPredictedCategory = predictedCategoryValue;
+                boolean categoryExists = allCategories.stream()
+                    .anyMatch(cat -> cat != null && cat.trim().equalsIgnoreCase(finalPredictedCategory));
+                
+                if (categoryExists) {
+                    // Find the exact match to show what it matched
+                    String matchedCategory = allCategories.stream()
+                        .filter(cat -> cat != null && cat.trim().equalsIgnoreCase(finalPredictedCategory))
+                        .findFirst()
+                        .orElse(null);
+                    logger.info("✅ Category '{}' MATCHED with database category '{}' (case-insensitive)", predictedCategoryValue, matchedCategory);
+                } else {
+                    logger.warn("❌ Category '{}' NOT FOUND in database. Available categories: {}", predictedCategoryValue, allCategories);
+                    // Try to find similar categories
+                    List<String> similarCategories = allCategories.stream()
+                        .filter(cat -> cat != null && 
+                                (cat.toLowerCase().contains(finalPredictedCategory.toLowerCase()) || 
+                                 finalPredictedCategory.toLowerCase().contains(cat.toLowerCase())))
+                        .collect(java.util.stream.Collectors.toList());
+                    if (!similarCategories.isEmpty()) {
+                        logger.info("💡 Similar categories found: {}", similarCategories);
+                    }
+                }
+            }
+            String predictedSubcategoryValue = (predictedSubcategory != null && !predictedSubcategory.trim().isEmpty() && !predictedSubcategory.trim().equals("ALL")) ? predictedSubcategory.trim() : null;
             
             // Validate and sanitize amount operator
             String validAmountOperator = null;
@@ -378,12 +452,23 @@ public class TransactionController {
                 }
             }
             
-            // Sanitize narration (trim whitespace)
-            String narrationValue = (narration != null && !narration.trim().isEmpty()) ? narration.trim() : null;
+            // Sanitize narration (trim whitespace and URL decode)
+            String narrationValue = null;
+            if (narration != null && !narration.trim().isEmpty()) {
+                // Spring auto-decodes URL parameters, but handle any remaining encoding issues
+                String decoded = narration.trim().replace("+", " ");
+                try {
+                    decoded = java.net.URLDecoder.decode(decoded, "UTF-8");
+                } catch (Exception e) {
+                    logger.debug("URL decoding failed for narration, using original: {}", e.getMessage());
+                }
+                narrationValue = decoded.trim();
+                logger.info("Filtering by narration: '{}' (original: '{}', URL decoded)", narrationValue, narration);
+            }
 
-            // Log the adjusted values (without narration data)
-            logger.debug("Processed month: {}, year: {}, amount: {} {}",
-                    monthValue, yearValue, validAmountOperator, amountValue);
+            // Log the adjusted values
+            logger.debug("Processed month: {}, year: {}, amount: {} {}, narration: {}",
+                    monthValue, yearValue, validAmountOperator, amountValue, narrationValue != null ? "[FILTERED]" : "null");
             
             // Call the service to filter transactions
             List<Transaction> transactions = transactionService.filterTransactions(
@@ -393,16 +478,17 @@ public class TransactionController {
 
             // Add results to the model for view rendering
             model.addAttribute("transactions", transactions);
-            model.addAttribute("month", month);
+            model.addAttribute("month", monthEnum);
             model.addAttribute("year", year);
             model.addAttribute("userId", userId);
-            model.addAttribute("categoryKeyword", category);
+            // Using predictedCategory everywhere, categoryKeyword is deprecated
             model.addAttribute("predictedCategory", predictedCategory);
             model.addAttribute("predictedSubcategory", predictedSubcategory);
             model.addAttribute("amountValue", amountValue);
             model.addAttribute("amountOperator", amountOperator);
             model.addAttribute("narration", narration);
-            model.addAttribute("categoriesKeywords", categoryKeywordService.getDistinctCategories());
+            // Add predictedCategories for dropdown in results table
+            model.addAttribute("predictedCategories", transactionService.getDistinctPredictedCategories());
             long transactionCount = transactions.size();
             double totalAmount = transactions.stream().mapToDouble(Transaction::getAmount).sum();
             model.addAttribute("transactionCount", transactionCount);
@@ -659,9 +745,9 @@ public class TransactionController {
             boolean success = transactionService.addCorrection(narration, category, userId, txnId);
             
             if (success) {
-                // Update both predicted category and category name (so UI reflects immediately)
+                // Update predicted category (UI will show this, categoryName is hidden)
                 transaction.setPredictedCategory(category);
-                transaction.setCategoryName(category);  // Update categoryName so UI shows the correction
+                transaction.setCategoryName(null);  // Clear categoryName - UI shows predictedCategory instead
                 transactionService.saveTransaction(transaction);
                 
                 logger.info("✅ Correction saved to user_corrections.json and transaction updated in database");
@@ -715,5 +801,33 @@ public class TransactionController {
         }
     }
 
+    /**
+     * Clear all transaction data and financial guidance data
+     * WARNING: This will permanently delete all data
+     */
+    @PostMapping("/clear-all-data")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> clearAllData() {
+        try {
+            User currentUser = userService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "User not authenticated"));
+            }
+            
+            logger.warn("⚠️ User {} requested to clear all transaction and guidance data", currentUser.getName());
+            dataCleanupService.clearAllTransactionAndGuidanceData(currentUser);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "✅ Successfully cleared all transaction and financial guidance data",
+                "status", "success"
+            ));
+        } catch (Exception e) {
+            logger.error("❌ Error clearing data: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Failed to clear data: " + e.getMessage(),
+                "status", "error"
+            ));
+        }
+    }
 
 }

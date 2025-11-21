@@ -28,6 +28,27 @@ public class WeekendOverspendingService {
     private WeekendOverspendingRepository weekendOverspendingRepository;
 
     /**
+     * Check if a transaction category is an investment (should be excluded from expense calculations).
+     * Investments are not considered expenses because they represent asset allocation, not consumption.
+     */
+    private boolean isInvestmentCategory(String category) {
+        if (category == null || category.trim().isEmpty()) {
+            return false;
+        }
+        String normalized = category.toLowerCase().trim();
+        return normalized.equals("investments") || normalized.startsWith("investments /");
+    }
+
+    /**
+     * Check if a transaction should be excluded from expense calculations.
+     * A transaction is excluded if either its categoryName or predictedCategory is an investment.
+     */
+    private boolean isInvestmentTransaction(Transaction transaction) {
+        return isInvestmentCategory(transaction.getCategoryName()) || 
+               isInvestmentCategory(transaction.getPredictedCategory());
+    }
+
+    /**
      * Detect weekend overspending patterns
      */
     public List<WeekendOverspending> detectWeekendOverspending(User user) {
@@ -37,11 +58,12 @@ public class WeekendOverspendingService {
         LocalDate monthStart = currentMonth.atDay(1);
         LocalDate monthEnd = currentMonth.atEndOfMonth();
 
-        // Get current month transactions
+        // Get current month transactions, excluding investments
         List<Transaction> transactions = transactionRepository.findAll()
             .stream()
             .filter(t -> t.getUser().getId().equals(user.getId()))
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
+            .filter(t -> !isInvestmentTransaction(t))
             .filter(t -> !t.getDate().isBefore(monthStart) && !t.getDate().isAfter(monthEnd))
             .collect(Collectors.toList());
 
@@ -103,10 +125,17 @@ public class WeekendOverspendingService {
                 overspending.setUser(user);
                 overspending.setCategory(category);
                 overspending.setWeekendAvg(weekendAvg);
+                overspending.setWeekendSpending(weekendTxs.stream()
+                    .mapToDouble(t -> Math.abs(t.getAmount()))
+                    .sum());
                 overspending.setWeekdayAvg(weekdayAvg);
+                overspending.setWeekdaySpending(weekdayTxs.stream()
+                    .mapToDouble(t -> Math.abs(t.getAmount()))
+                    .sum());
                 overspending.setRatio(ratio);
                 overspending.setPercentageIncrease(percentageIncrease);
                 overspending.setMonth(currentMonth);
+                overspending.setYear(currentMonth.getYear());
                 overspending.setTrend(determineTrend(user, category));
                 overspending.setAlertLevel(determineAlertLevel(ratio));
                 overspending.setIsActive(true);
@@ -128,13 +157,14 @@ public class WeekendOverspendingService {
      * Determine trend (increasing, decreasing, stable)
      */
     private WeekendOverspending.Trend determineTrend(User user, String category) {
-        // Get last 3 months of weekend spending
+        // Get last 3 months of weekend spending, excluding investments
         LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
         List<Transaction> transactions = transactionRepository.findAll()
             .stream()
             .filter(t -> t.getUser().getId().equals(user.getId()))
             .filter(t -> t.getPredictedCategory() != null && t.getPredictedCategory().equals(category))
             .filter(t -> t.getAmount() != null && t.getAmount() < 0)
+            .filter(t -> !isInvestmentTransaction(t))
             .filter(t -> t.getDate().isAfter(threeMonthsAgo))
             .collect(Collectors.toList());
 

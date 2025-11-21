@@ -22,8 +22,14 @@ public class WeekendOverspending {
     @Column(name = "weekend_avg", nullable = false)
     private Double weekendAvg;
 
+    @Column(name = "weekend_spending")
+    private Double weekendSpending;
+
     @Column(name = "weekday_avg", nullable = false)
     private Double weekdayAvg;
+
+    @Column(name = "weekday_spending")
+    private Double weekdaySpending;
 
     @Column(name = "ratio", nullable = false)
     private Double ratio; // weekend_avg / weekday_avg
@@ -33,6 +39,9 @@ public class WeekendOverspending {
 
     @Column(name = "month")
     private YearMonth month;
+
+    @Column(name = "year", nullable = false)
+    private Integer year;
 
     @Column(name = "trend")
     @Enumerated(EnumType.STRING)
@@ -53,6 +62,9 @@ public class WeekendOverspending {
         createdAt = LocalDate.now();
         if (month == null) {
             month = YearMonth.now();
+        }
+        if (year == null && month != null) {
+            year = month.getYear();
         }
     }
 
@@ -82,8 +94,14 @@ public class WeekendOverspending {
     public Double getWeekendAvg() { return weekendAvg; }
     public void setWeekendAvg(Double weekendAvg) { this.weekendAvg = weekendAvg; }
 
+    public Double getWeekendSpending() { return weekendSpending; }
+    public void setWeekendSpending(Double weekendSpending) { this.weekendSpending = weekendSpending; }
+
     public Double getWeekdayAvg() { return weekdayAvg; }
     public void setWeekdayAvg(Double weekdayAvg) { this.weekdayAvg = weekdayAvg; }
+
+    public Double getWeekdaySpending() { return weekdaySpending; }
+    public void setWeekdaySpending(Double weekdaySpending) { this.weekdaySpending = weekdaySpending; }
 
     public Double getRatio() { return ratio; }
     public void setRatio(Double ratio) { this.ratio = ratio; }
@@ -92,7 +110,15 @@ public class WeekendOverspending {
     public void setPercentageIncrease(Double percentageIncrease) { this.percentageIncrease = percentageIncrease; }
 
     public YearMonth getMonth() { return month; }
-    public void setMonth(YearMonth month) { this.month = month; }
+    public void setMonth(YearMonth month) { 
+        this.month = month;
+        if (month != null && year == null) {
+            this.year = month.getYear();
+        }
+    }
+
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
     public Trend getTrend() { return trend; }
     public void setTrend(Trend trend) { this.trend = trend; }

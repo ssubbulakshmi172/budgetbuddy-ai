@@ -271,24 +271,8 @@ public class SpendingPatternService {
      * Extract merchant pattern from narration (simplified merchant name)
      */
     private String extractMerchantPattern(String narration) {
-        if (narration == null || narration.isEmpty()) {
-            return "UNKNOWN";
-        }
-
-        // Extract key words (uppercase, remove UPI codes, etc.)
-        String cleaned = narration.toUpperCase()
-            .replaceAll("UPI[^\\s]*", "")
-            .replaceAll("\\d+", "")
-            .replaceAll("[^A-Z\\s]", " ")
-            .trim();
-
-        // Take first few significant words
-        String[] words = cleaned.split("\\s+");
-        if (words.length > 0) {
-            return words[0] + (words.length > 1 ? " " + words[1] : "");
-        }
-
-        return "UNKNOWN";
+        // Use the utility class for consistent narration preprocessing
+        return com.budgetbuddy.util.NarrationPreprocessor.extractMerchantPattern(narration);
     }
 
     /**

@@ -13,5 +13,8 @@ public interface CategoryOverspendingAlertRepository extends JpaRepository<Categ
     List<CategoryOverspendingAlert> findByUserAndIsActiveTrue(User user);
     List<CategoryOverspendingAlert> findByUserAndMonth(User user, YearMonth month);
     List<CategoryOverspendingAlert> findByUserAndAlertLevel(User user, CategoryOverspendingAlert.AlertLevel alertLevel);
+    
+    // Find existing alert for user, category, and month to prevent duplicates
+    CategoryOverspendingAlert findByUserAndCategoryAndMonth(User user, String category, YearMonth month);
 }
 

@@ -28,4 +28,12 @@ public class UserService {
     public void deleteUserById(Long id) {
         userRepository.deleteById(id);
     }
+
+    /**
+     * Get current user (defaults to user ID 1 for single-user setup)
+     * TODO: Implement proper authentication/authorization when multi-user support is added
+     */
+    public User getCurrentUser() {
+        return userRepository.findById(1L).orElse(null);
+    }
 }

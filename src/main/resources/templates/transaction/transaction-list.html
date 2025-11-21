@@ -43,6 +43,10 @@
                     <a th:href="@{/transactions/new}" class="btn btn-primary btn-lg shadow-sm">
                         <i class="bi bi-plus-lg me-2"></i>Add New Transaction
                     </a>
+                    <button type="button" id="clearAllDataBtn" class="btn btn-outline-danger btn-lg shadow-sm"
+                            data-bs-toggle="modal" data-bs-target="#clearAllDataModal">
+                        <i class="bi bi-trash3 me-2"></i>Clear All Data
+                    </button>
                 </div>
             </div>
         </div>
@@ -135,15 +139,15 @@
                                 </td>
                                 <td>
                                 <span class="badge category-badge"
-                                      th:class="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? 'badge-category' : 'badge-uncategorized'}"
-                                      th:attr="data-full-category=${transaction.categoryName != null ? transaction.categoryName : ''}"
-                                      th:text="${transaction.categoryName != null and !transaction.categoryName.isEmpty() ? transaction.categoryName : 'Uncategorized'}">
+                                      th:class="${transaction.predictedCategory != null and !transaction.predictedCategory.isEmpty() ? 'badge-category' : 'badge-uncategorized'}"
+                                      th:attr="data-full-category=${transaction.predictedCategory != null ? transaction.predictedCategory : ''}"
+                                      th:text="${transaction.predictedCategory != null and !transaction.predictedCategory.isEmpty() ? transaction.predictedCategory : 'Uncategorized'}">
                                     Category
                                 </span>
                                 <span class="badge bg-secondary ms-1 category-full-name" 
                                       style="font-size: 0.65rem; cursor: help; display: none;"
-                                      th:if="${transaction.categoryName != null and transaction.categoryName.contains('/')}"
-                                      th:title="${transaction.categoryName}"
+                                      th:if="${transaction.predictedCategory != null and transaction.predictedCategory.contains('/')}"
+                                      th:title="${transaction.predictedCategory}"
                                       data-bs-toggle="tooltip"
                                       data-bs-placement="top">
                                     <i class="bi bi-info-circle"></i>
@@ -294,6 +298,46 @@
             </div>
         </div>
 
+        <!-- Clear All Data Confirmation Modal -->
+        <div class="modal fade" id="clearAllDataModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Clear All Data
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger" role="alert">
+                            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>Warning: This action cannot be undone!</h6>
+                            <p class="mb-0">This will permanently delete:</p>
+                            <ul class="mb-0 mt-2">
+                                <li>All transactions</li>
+                                <li>All financial guidance data</li>
+                                <li>All category overspending alerts</li>
+                                <li>All money leak records</li>
+                                <li>All savings projections</li>
+                                <li>All weekend overspending data</li>
+                                <li>All salary week analyses</li>
+                                <li>All spending patterns and predictions</li>
+                                <li>All financial nudges</li>
+                            </ul>
+                        </div>
+                        <p class="text-muted">Are you absolutely sure you want to proceed?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger" id="confirmClearAllDataBtn">
+                            <i class="bi bi-trash3 me-2"></i>Yes, Clear All Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Delete Selected Confirmation Modal -->
         <div class="modal fade" id="deleteSelectedModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
@@ -327,6 +371,43 @@
                 const selectedCount = document.getElementById('selectedCount');
                 const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                 const refreshAiCategoriesBtn = document.getElementById('refreshAiCategoriesBtn');
+                const confirmClearAllDataBtn = document.getElementById('confirmClearAllDataBtn');
+                
+                // Handle Clear All Data button
+                if (confirmClearAllDataBtn) {
+                    confirmClearAllDataBtn.addEventListener('click', function() {
+                        const btn = this;
+                        btn.disabled = true;
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Clearing...';
+                        
+                        fetch('/transactions/clear-all-data', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                // Show success message
+                                alert('✅ ' + data.message);
+                                // Reload the page to show empty state
+                                window.location.reload();
+                            } else {
+                                alert('❌ Error: ' + (data.error || 'Failed to clear data'));
+                                btn.disabled = false;
+                                btn.innerHTML = originalHtml;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error clearing data:', error);
+                            alert('❌ Error: Failed to clear data. Please try again.');
+                            btn.disabled = false;
+                            btn.innerHTML = originalHtml;
+                        });
+                    });
+                }
                 
                 // Format category names to show only last part after slash
                 function formatCategoryName(badgeElement) {

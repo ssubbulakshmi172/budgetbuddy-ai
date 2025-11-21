@@ -41,12 +41,23 @@
                                 </a>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="transactionsDropdown" role="button" 
+                                <a class="nav-link dropdown-toggle" href="#" id="actionsDropdown" role="button" 
                                    data-bs-toggle="dropdown" aria-expanded="false"
-                                   th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'transaction')} ? 'active'">
-                                    <i class="bi bi-list-ul me-1"></i>Transactions
+                                   th:classappend="${#httpServletRequest != null and (#strings.containsIgnoreCase(#httpServletRequest.requestURI, 'transaction') or #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'dashboard') or #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'guidance') or #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'categor') or #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'user') or #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'report'))} ? 'active'">
+                                    <i class="bi bi-menu-button-wide me-1"></i>Actions
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="transactionsDropdown">
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown">
+                                    <li><h6 class="dropdown-header"><i class="bi bi-currency-exchange me-2"></i>Transactions</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/transactions/new}">
+                                            <i class="bi bi-plus-circle me-2"></i>Add Transaction
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/transactions/transaction-upload}">
+                                            <i class="bi bi-cloud-upload me-2"></i>Upload Transactions
+                                        </a>
+                                    </li>
                                     <li>
                                         <a class="dropdown-item" th:href="@{/transactions}">
                                             <i class="bi bi-eye me-2"></i>View Transactions
@@ -57,27 +68,36 @@
                                             <i class="bi bi-funnel me-2"></i>Filter Transactions
                                         </a>
                                     </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header"><i class="bi bi-graph-up me-2"></i>Analytics</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/dashboard}">
+                                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/guidance/dashboard}">
+                                            <i class="bi bi-lightbulb me-2"></i>Financial Guidance
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/reports}">
+                                            <i class="bi bi-bar-chart me-2"></i>Reports
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header"><i class="bi bi-gear me-2"></i>Settings & Management</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/categories}">
+                                            <i class="bi bi-tags me-2"></i>Categories
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" th:href="@{/users}">
+                                            <i class="bi bi-people me-2"></i>Users
+                                        </a>
+                                    </li>
                                 </ul>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" th:href="@{/dashboard}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'dashboard')} ? 'active'">
-                                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" th:href="@{/categories}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'categor')} ? 'active'">
-                                    <i class="bi bi-tags me-1"></i>Categories
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" th:href="@{/users}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'user')} ? 'active'">
-                                    <i class="bi bi-people me-1"></i>Users
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" th:href="@{/reports}" th:classappend="${#httpServletRequest != null and #strings.containsIgnoreCase(#httpServletRequest.requestURI, 'report')} ? 'active'">
-                                    <i class="bi bi-bar-chart me-1"></i>Reports
-                                </a>
                             </li>
                         </ul>
                     </div>

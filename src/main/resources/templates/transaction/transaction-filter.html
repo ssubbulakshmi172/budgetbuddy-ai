@@ -21,7 +21,7 @@
                     <h1 class="display-4 fw-bold mb-3">
                         <span class="welcome-text">Filter </span><span class="brand-text">Transactions</span>
                     </h1>
-                    <p class="lead text-muted">Filter transactions by month, year, category, and user</p>
+                    <p class="lead text-muted">Filter transactions by month, year, predicted category, and user</p>
                 </div>
                 <div>
                     <a th:href="@{/transactions}" class="btn btn-outline-secondary btn-lg shadow-sm">
@@ -69,25 +69,15 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="category" class="form-label">Category <span class="text-muted">(Optional)</span></label>
-                                <select name="category" id="category" class="form-select">
-                                    <option value="">Select Category (Optional)</option>
-                                    <option value="EMPTY" th:selected="${categoryKeyword == 'EMPTY'}">Empty</option>
-                                    <option th:each="category : ${categoriesKeywords}"
-                                            th:value="${category}"
-                                            th:text="${category}"
-                                            th:selected="${category == categoryKeyword}"></option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="predictedCategory" class="form-label">AI Predicted Category <span class="text-muted">(Optional)</span></label>
+                                <label for="predictedCategory" class="form-label">Predicted Category <span class="text-muted">(Optional)</span></label>
                                 <select name="predictedCategory" id="predictedCategory" class="form-select">
                                     <option value="ALL" th:selected="${predictedCategory == null or predictedCategory == 'ALL'}">All Categories</option>
-                                    <option th:each="predCat : ${predictedCategories}"
+                                    <option th:if="${predictedCategories != null and !predictedCategories.isEmpty()}"
+                                            th:each="predCat : ${predictedCategories}"
                                             th:value="${predCat}"
                                             th:text="${predCat}"
                                             th:selected="${predCat == predictedCategory}"></option>
+                                    <option th:if="${predictedCategories == null or predictedCategories.isEmpty()}" value="" disabled>No predicted categories available</option>
                                 </select>
                             </div>
 
@@ -95,10 +85,12 @@
                                 <label for="predictedSubcategory" class="form-label">AI Predicted Subcategory <span class="text-muted">(Optional)</span></label>
                                 <select name="predictedSubcategory" id="predictedSubcategory" class="form-select">
                                     <option value="ALL" th:selected="${predictedSubcategory == null or predictedSubcategory == 'ALL'}">All Subcategories</option>
-                                    <option th:each="predSubcat : ${predictedSubcategories}"
+                                    <option th:if="${predictedSubcategories != null and !predictedSubcategories.isEmpty()}"
+                                            th:each="predSubcat : ${predictedSubcategories}"
                                             th:value="${predSubcat}"
                                             th:text="${predSubcat}"
                                             th:selected="${predSubcat == predictedSubcategory}"></option>
+                                    <option th:if="${predictedSubcategories == null or predictedSubcategories.isEmpty()}" value="" disabled>No predicted subcategories available</option>
                                 </select>
                             </div>
 
@@ -198,14 +190,16 @@
                                                 <input type="hidden" name="month" th:value="${currentMonth}" />
                                                 <input type="hidden" name="year" th:value="${currentYear}" />
                                                 <input type="hidden" name="userId" th:value="${currentUserId}" />
-                                                <input type="hidden" name="categoryKeyword" th:value="${currentCategoryKeyword}" />
+                                                <input type="hidden" name="predictedCategory" th:value="${predictedCategory}" />
 
                                                 <div class="d-flex gap-2 align-items-center">
-                                                    <select name="categoryName" class="form-select form-select-sm" style="width: auto;">
-                                                        <option th:each="category : ${categoriesKeywords}"
+                                                    <select name="predictedCategory" class="form-select form-select-sm" style="width: auto;">
+                                                        <option value="">-- Select --</option>
+                                                        <option th:if="${predictedCategories != null}"
+                                                                th:each="category : ${predictedCategories}"
                                                                 th:value="${category}"
                                                                 th:text="${category}"
-                                                                th:selected="${transaction.categoryName == category}">
+                                                                th:selected="${transaction.predictedCategory == category}">
                                                         </option>
                                                     </select>
                                                     <button type="submit" class="btn btn-sm btn-primary">

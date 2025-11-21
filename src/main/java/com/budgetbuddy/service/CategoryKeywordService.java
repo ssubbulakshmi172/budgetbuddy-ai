@@ -40,18 +40,26 @@ public class CategoryKeywordService {
     }
     
     public List<CategoryKeyword> getTaxonomyCategories() {
-        return categoryKeywordRepository.findByCategoriesFor("Taxonomy");
+        // Get categories from category_keyword table where categoriesFor = 'Taxonomy'
+        List<CategoryKeyword> taxonomy = categoryKeywordRepository.findByCategoriesFor("Taxonomy");
+        // Return empty list if null (defensive coding)
+        return taxonomy != null ? taxonomy : new java.util.ArrayList<>();
     }
     
     public List<CategoryKeyword> getManualCategories() {
+        // Get categories from category_keyword table where categoriesFor = 'Manual'
         List<CategoryKeyword> manual = categoryKeywordRepository.findByCategoriesFor("Manual");
-        // Also include categories where categoriesFor is null, empty, or not "Taxonomy" (legacy data)
+        // Return empty list if null (defensive coding)
+        if (manual == null) {
+            manual = new java.util.ArrayList<>();
+        }
+        // Also include categories where categoriesFor is null, empty, or not "Taxonomy"/"Manual"/"Corrected" (legacy data)
         List<CategoryKeyword> all = categoryKeywordRepository.findAll();
         for (CategoryKeyword ck : all) {
             String categoriesFor = ck.getCategoriesFor();
             if (categoriesFor == null || 
                 categoriesFor.trim().isEmpty() ||
-                (!categoriesFor.equals("Taxonomy") && !categoriesFor.equals("Manual"))) {
+                (!categoriesFor.equals("Taxonomy") && !categoriesFor.equals("Manual") && !categoriesFor.equals("Corrected"))) {
                 // Check if not already in manual list
                 boolean found = false;
                 for (CategoryKeyword existing : manual) {
@@ -66,5 +74,17 @@ public class CategoryKeywordService {
             }
         }
         return manual;
+    }
+    
+    public List<CategoryKeyword> getCorrectedCategories() {
+        // Get categories from category_keyword table where categoriesFor = 'Corrected'
+        List<CategoryKeyword> corrected = categoryKeywordRepository.findByCategoriesFor("Corrected");
+        // Return empty list if null (defensive coding)
+        return corrected != null ? corrected : new java.util.ArrayList<>();
+    }
+    
+    // Expose repository for TaxonomyLoaderService
+    public CategoryKeywordRepository getCategoryKeywordRepository() {
+        return categoryKeywordRepository;
     }
 }

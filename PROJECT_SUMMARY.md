@@ -1,49 +1,82 @@
 # BudgetBuddy AI - Complete Project Summary
 
+**Version**: 2.2.0  
+**Last Updated**: 2025-01-21  
+**Status**: ✅ Production Ready
+
+---
+
 ## 📋 Project Overview
 
-BudgetBuddy AI is a comprehensive personal finance management application with AI-powered transaction categorization. The project consists of:
+BudgetBuddy AI is a comprehensive personal finance management application with AI-powered transaction categorization and intelligent financial guidance. The system automatically categorizes bank transactions using machine learning and provides actionable insights to help users understand and optimize their spending patterns.
 
-1. **Spring Boot Backend** - Web application with ML inference
-2. **Android Mobile App** - Native Kotlin app with on-device ML
-3. **ML Training Pipeline** - Python-based DistilBERT model training
+### Key Highlights
+- 🤖 **AI-Powered Categorization**: DistilBERT multi-task model with 90%+ accuracy
+- 📊 **Financial Guidance**: 10+ rule-based analytics features
+- 🔄 **Event-Driven Updates**: Automatic recalculation when transactions change
+- 🎯 **User Corrections**: Learn from user feedback to improve accuracy
+- 📱 **Multi-Platform**: Spring Boot web app + Android mobile app
 
 ---
 
 ## 🏗️ Architecture
 
-### Multi-Platform Structure
+### System Components
 
 ```
 budgetbuddy-ai/
-├── src/                          # Spring Boot Backend
-│   ├── main/java/com/budgetbuddy/
-│   │   ├── controller/          # REST & MVC Controllers
-│   │   ├── service/             # Business Logic
-│   │   ├── repository/         # Data Access (JPA)
-│   │   ├── model/              # Entity Models
-│   │   └── config/             # Configuration
-│   └── main/resources/
-│       ├── templates/          # Thymeleaf HTML
-│       └── application.properties
+├── src/main/java/                    # Spring Boot Backend
+│   ├── controller/                   # Web Controllers (8 controllers)
+│   │   ├── TransactionController     # Transaction CRUD, import, filtering
+│   │   ├── FinancialGuidanceController  # Financial insights dashboard
+│   │   ├── CategoryKeywordController # Category management
+│   │   ├── DashboardController       # Spending analytics dashboard
+│   │   ├── HomeController            # Home page
+│   │   ├── UserController            # User management
+│   │   ├── ReportController          # REST API for reports
+│   │   └── ReportViewController      # Reports view page
+│   ├── service/                      # Business Logic (14 services)
+│   │   ├── TransactionService        # Core transaction operations
+│   │   ├── TransactionCategorizationService  # ML categorization orchestration
+│   │   ├── LocalModelInferenceService # Python script execution
+│   │   ├── MoneyLeakService          # Top spending leaks detection
+│   │   ├── CategoryOverspendingService # Category overspending alerts
+│   │   ├── SavingsProjectionService   # Year-end savings projection
+│   │   ├── WeekendOverspendingService # Weekend spending analysis
+│   │   ├── FinancialAnalyticsService  # Grocery vs dining, investments, subscriptions
+│   │   ├── SpendingPatternService     # Spending pattern detection
+│   │   ├── CategoryKeywordService     # Keyword management
+│   │   ├── TaxonomyLoaderService      # Load categories from YAML
+│   │   ├── DataCleanupService         # Data cleanup utilities
+│   │   └── UserService                # User management
+│   ├── repository/                   # Data Access Layer (9 repositories)
+│   ├── model/                        # JPA Entities (9 models)
+│   ├── event/                        # Spring Events
+│   │   ├── TransactionChangedEvent   # Transaction change events
+│   │   └── FinancialGuidanceUpdateListener  # Event-driven updates
+│   ├── util/                         # Utilities
+│   │   └── NarrationPreprocessor     # Text cleaning utilities
+│   └── config/                       # Configuration
 │
-├── mobile-version/              # Android Mobile App
-│   └── app/src/main/java/com/budgetbuddy/mobile/
-│       ├── data/               # Models, DAOs, Database
-│       ├── repository/         # Data Repositories
-│       ├── service/            # Business Logic
-│       ├── ml/                 # ML Inference (PyTorch Mobile)
-│       ├── ui/                 # Jetpack Compose UI
-│       └── util/               # Utilities
+├── mybudget-ai/                      # ML Training & Inference
+│   ├── train_distilbert.py           # Model training
+│   ├── inference_local.py            # Local inference script
+│   ├── anomaly_detection.py          # ML-based anomaly detection
+│   ├── preprocessing_utils.py        # Text preprocessing utilities
+│   ├── preprocess_narration.py       # Narration preprocessing script
+│   ├── add_correction.py             # Add user corrections
+│   ├── get_categories.py             # Extract categories from YAML
+│   ├── categories.yml                # Category definitions
+│   ├── user_corrections.json         # User corrections storage
+│   └── models/                       # Trained models
+│       └── distilbert_multitask_latest/
 │
-└── mybudget-ai/                # ML Training & Inference
-    ├── train_distilbert.py     # Model Training
-    ├── inference_local.py      # Local Inference Script
-    ├── distilbert_inference.py # Core Inference Module
-    ├── preprocessing_utils.py  # Text Preprocessing
-    ├── add_correction.py       # Add User Corrections
-    ├── export_corrections.py   # Export Corrections
-    └── models/                 # Trained Models
+└── mobile-version/                   # Android Mobile App (Kotlin)
+    └── app/src/main/java/com/budgetbuddy/mobile/
+        ├── data/                     # Room Database, DAOs, Models
+        ├── service/                  # Business Logic
+        ├── ml/                       # PyTorch Mobile inference
+        └── ui/                       # Jetpack Compose UI
 ```
 
 ---
@@ -53,41 +86,39 @@ budgetbuddy-ai/
 ### Model Architecture
 - **Base Model**: DistilBERT (distilbert-base-uncased)
 - **Tasks**: Multi-task learning
-  - Transaction Type (P2C, P2P, P2Business)
-  - Category (10+ categories with subcategories)
-  - Intent (purchase, transfer, refund, subscription, bill_payment, other)
-- **Format**: PyTorch Mobile (.ptl) for Android, Python for backend
+  - Transaction Type: P2C, P2P, P2Business
+  - Category: 26+ categories with subcategories
+  - Intent: purchase, transfer, refund, subscription, bill_payment, other
+- **Performance**: 89.61% macro F1-score, 90.10% weighted F1-score
+- **Format**: PyTorch (.pt) for backend, PyTorch Mobile (.ptl) for Android
 
 ### Inference Priority Order
 
-1. **User Corrections** (Highest Priority)
+1. **User Corrections** (Highest Priority - 100% confidence)
    - Source: `mybudget-ai/user_corrections.json`
-   - Preprocessed narrations (removes UPI tags, IDs)
+   - Preprocessed narrations (cleaned of UPI tags, IDs)
    - In-memory cache for fast lookup
-   - 100% confidence
+   - Persisted to `category_keyword` table with `categoriesFor = "Corrected"`
 
-2. **Commodity Corrections** (Efficient Mode - Future)
-   - Source: Vector database (shared corrections from other users)
-   - Similarity matching using DistilBERT embeddings
-   - Cosine similarity threshold (e.g., >0.85)
-   - Fast lookup for common patterns
-
-3. **Keyword Matching** (Rule-Based)
-   - Source: `categories.yml`
+2. **Taxonomy Keywords** (Rule-Based)
+   - Source: `categories.yml` → loaded into `category_keyword` table
    - Word-boundary matching
    - Longest keyword first
+   - Auto-loaded on application startup via `TaxonomyLoaderService`
 
-4. **DistilBERT Model** (ML Prediction)
+3. **DistilBERT Model** (ML Prediction)
    - Multi-task predictions
-   - Confidence scores
+   - Confidence scores (0.0 to 1.0)
    - Subcategory extraction
+   - Batch processing support
 
 ### Text Preprocessing
 - Removes UPI prefixes (`UPI-`, `UPI/`)
 - Removes bank tags (`@YBL`, `@HDFCBANK`)
 - Removes transaction IDs (long numbers)
 - Normalizes separators
-- Preserves P2P clues (for person-to-person transactions)
+- Preserves merchant names and semantic meaning
+- Centralized in `NarrationPreprocessor` utility class
 
 ---
 
@@ -98,22 +129,112 @@ budgetbuddy-ai/
 #### Transaction
 - `id`, `date`, `narration`, `amount`
 - `withdrawalAmt`, `depositAmt`, `closingBalance`
-- `userId` (foreign key)
-- **ML Predictions**: `predictedCategory`, `predictedSubcategory`, `predictedTransactionType`, `predictedIntent`, `predictionConfidence`
-- **User Assignment**: `categoryName`
-- **Metadata**: `chequeRefNo`, `predictionReason`
+- `userId` (foreign key to User)
+- **ML Predictions**: `predictedCategory`, `predictedSubcategory`, `predictedTransactionType`, `predictedIntent`, `predictionConfidence`, `predictionReason`
+- **User Assignment**: `categoryName` (manual override)
 
 #### User
 - `id`, `name`, `email`, `password`
 
 #### CategoryKeyword
-- `id`, `keyword`, `categoryName`, `categoriesFor` (Taxonomy/Manual)
+- `id`, `keyword`, `categoryName`, `categoriesFor` (Taxonomy/Manual/Corrected)
+- Used for keyword matching and user corrections
 
-#### Financial Guidance Entities
-- **SpendingPattern**: Detected spending patterns (daily/weekly/monthly)
-- **SpendingPrediction**: Future spending forecasts
-- **FinancialNudge**: Personalized financial advice
-- **Trend**: Spending trend analysis
+### Financial Guidance Entities
+
+#### CategoryOverspendingAlert
+- Detects categories exceeding historical spending patterns
+- Alert levels: LOW, MEDIUM, HIGH, CRITICAL
+- Percentage increase tracking
+- Projected monthly spending
+
+#### MoneyLeak
+- Top spending leaks detection
+- Leak types: Subscription, Coffee Effect, ATM Spikes, Friend Covering, High-Impact One-Time, Emotional/Late-Night Spending
+- Annual amount calculation
+- Ranking system
+
+#### SavingsProjection
+- Year-end savings projection
+- Based on current spending patterns
+- Monthly and annual projections
+
+#### WeekendOverspending
+- Weekend vs weekday spending analysis
+- Percentage increase tracking
+- Category-wise breakdown
+
+#### SalaryWeekAnalysis
+- Salary week spending patterns
+- Ratio analysis (salary week vs non-salary week)
+- Anomaly detection
+
+#### SpendingPattern
+- Detected spending patterns (daily/weekly/monthly)
+- Merchant pattern matching
+- Frequency and confidence tracking
+
+---
+
+## ✨ Key Features
+
+### 1. Transaction Management
+- ✅ Add/Edit/Delete transactions
+- ✅ Bulk import from CSV/Excel files
+- ✅ Advanced filtering (date range, category, amount, narration)
+- ✅ Sorting (date, amount, category)
+- ✅ Bulk delete with filters
+- ✅ Duplicate detection and removal
+- ✅ Transaction correction (updates ML predictions)
+
+### 2. AI Categorization
+- ✅ Automatic category prediction using DistilBERT
+- ✅ Multi-task prediction (category, type, intent)
+- ✅ Confidence scores for all predictions
+- ✅ Batch prediction refresh
+- ✅ User corrections with persistence
+- ✅ Keyword matching fallback
+- ✅ Taxonomy loading from YAML
+
+### 3. Financial Guidance Dashboard (10 Features)
+
+#### Rule-Based Analytics:
+1. **Top 3 Spending Areas** - Identifies top spending categories with amounts
+2. **Category Overspending Alerts** - Flags categories exceeding historical patterns
+3. **Weekend Overspending** - Analyzes weekend vs weekday spending
+4. **Salary Week Analysis** - Detects spending patterns around salary dates
+5. **Year-End Savings Projection** - Projects year-end savings based on current patterns
+6. **Regular Monthly Spending** - Identifies recurring expenses and investments
+7. **Grocery vs Eating-Out** - Compares grocery spending vs dining expenses
+8. **Investment Tracking** - Tracks investment transactions separately
+9. **Subscriptions Analysis** - Identifies recurring subscription payments
+10. **Category Trend Visualization** - JSON data for chart visualization
+
+#### ML-Based Analytics:
+- **Unusual Spending Patterns (ML Detection)** - Isolation Forest-based anomaly detection
+  - Filters out regular monthly spending
+  - Identifies truly unusual transactions
+  - Provides intent classification
+  - Async loading with manual trigger button
+
+### 4. Event-Driven Updates
+- ✅ Automatic financial guidance recalculation on transaction changes
+- ✅ Debouncing mechanism (30-second window)
+- ✅ Manual reload endpoint (`/guidance/reload`)
+- ✅ Force update option (bypasses debounce)
+
+### 5. Category Management
+- ✅ Three-tab interface: Corrected, Taxonomy, Manual
+- ✅ Corrected categories from user corrections
+- ✅ Taxonomy categories from `categories.yml`
+- ✅ Manual categories (user-defined)
+- ✅ Edit/Delete category keywords
+- ✅ Automatic taxonomy loading on startup
+
+### 6. Data Management
+- ✅ Clear all transaction and financial guidance data
+- ✅ Data cleanup service with comprehensive deletion
+- ✅ SQL scripts for dropping unused tables
 
 ---
 
@@ -122,9 +243,17 @@ budgetbuddy-ai/
 ### Backend (Spring Boot)
 - **Framework**: Spring Boot 3.x
 - **Database**: MySQL (JPA/Hibernate)
-- **ML Inference**: Python scripts (ProcessBuilder)
+- **ML Inference**: Python scripts via ProcessBuilder
 - **UI**: Thymeleaf templates
 - **Build**: Gradle
+- **Java Version**: 17+
+
+### ML/AI
+- **Framework**: PyTorch
+- **Model**: DistilBERT (Hugging Face Transformers)
+- **Training**: Multi-task learning
+- **Python**: 3.9+
+- **Libraries**: transformers, torch, pandas, numpy, scikit-learn
 
 ### Mobile (Android)
 - **Language**: Kotlin
@@ -132,489 +261,257 @@ budgetbuddy-ai/
 - **Database**: Room (SQLite)
 - **ML**: PyTorch Mobile 2.1.0
 - **Architecture**: MVVM
-- **File Parsing**: Apache POI (Excel), OpenCSV
-- **Charts**: MPAndroidChart
-- **Build**: Gradle (Android)
-
-### ML Training
-- **Framework**: PyTorch
-- **Model**: DistilBERT (Hugging Face Transformers)
-- **Training**: Multi-task learning
-- **Quantization**: INT8 for mobile
-- **Format**: TorchScript Lite (.ptl)
 
 ---
 
-## ✨ Key Features
+## 📈 Financial Guidance Features (Detailed)
 
-### Spring Boot Backend
+### 1. Top 3 Spending Areas
+- Aggregates spending by category
+- Excludes investment categories
+- Shows spending amounts
+- Horizontal display (1, 2, 3)
+- "View Transactions" link for each category
 
-#### Transaction Management
-- ✅ Add/Edit/Delete transactions
-- ✅ Bulk import (CSV/Excel)
-- ✅ Filter by month, year, category, amount, narration
-- ✅ Sort by date, amount, category
-- ✅ Bulk delete by filters
-- ✅ Duplicate detection
+### 2. Category Overspending Alerts
+- Compares current month spending vs historical average (last 6 months)
+- Alert levels based on percentage increase:
+  - CRITICAL: >50% increase or >2× standard deviation
+  - HIGH: 25-50% increase
+  - MEDIUM: 10-25% increase
+  - LOW: <10% increase
+- Prevents duplicates (one alert per category per month)
+- "View Transactions" link
 
-#### ML Categorization
-- ✅ Automatic category prediction
-- ✅ Keyword matching (rule-based)
-- ✅ User corrections (saved to JSON)
-- ✅ Batch prediction refresh
-- ✅ Confidence scores
-- ✅ Subcategory extraction
-- ⏳ Efficient Mode (cloud sync - infrastructure ready)
+### 3. Weekend Overspending
+- Analyzes weekend (Sat-Sun) vs weekday spending
+- Category-wise breakdown
+- Percentage increase tracking
+- Monthly analysis
+- "View Transactions" link
 
-#### Financial Guidance
-- ✅ Spending Patterns (daily/weekly/monthly)
-- ✅ Trend Analysis (6-month trends, spikes, dips)
-- ✅ Spending Predictions (future forecasts)
-- ✅ Financial Nudges (personalized advice)
+### 4. Salary Week Analysis
+- Detects salary dates (large deposits)
+- Analyzes spending in salary week vs non-salary weeks
+- Ratio calculation
+- Anomaly detection
+- "View Transactions" link
 
-#### Category Management
-- ✅ View all categories
-- ✅ Add/Edit/Delete category keywords
-- ✅ Taxonomy vs Manual categories
-- ✅ Keyword-based matching
+### 5. Year-End Savings Projection
+- Projects savings based on current spending rate
+- Monthly and annual projections
+- Updates automatically with new transactions
 
-#### Dashboard
-- ✅ Current month spending
-- ✅ Category breakdown
-- ✅ Month-over-month comparison
-- ✅ 6-month trends
-- ✅ Recent transactions
-- ✅ Uncategorized count
+### 6. Regular Monthly Spending
+- Identifies recurring expenses (3+ months)
+- Separates expenses and investments
+- Excludes from anomaly detection
+- "View All Transactions" link
 
-### Android Mobile App
+### 7. Grocery vs Eating-Out
+- Compares grocery store spending vs restaurant/dining
+- Monthly comparison
+- Percentage breakdown
 
-#### Transaction Management
-- ✅ Add/Edit/Delete transactions
-- ✅ Transaction list with filters
-- ✅ File import (CSV/Excel)
-- ✅ ML prediction on add/edit
+### 8. Investment Tracking
+- Tracks investment transactions separately
+- Excludes from expense calculations
+- Category-based detection
 
-#### ML Categorization
-- ✅ On-device PyTorch Mobile inference
-- ✅ Keyword matching (from database)
-- ✅ User corrections support
-- ✅ Preprocessed text matching
-- ✅ Confidence scores
-- ✅ Subcategory extraction
+### 9. Subscriptions Analysis
+- Identifies recurring subscription payments
+- Monthly frequency tracking
+- Amount aggregation
 
-#### Financial Guidance
-- ✅ Spending Patterns view
-- ✅ Trend Analysis
-- ✅ Spending Predictions
-- ✅ Financial Nudges
-- ✅ Interactive charts
+### 10. Category Trend Visualization
+- JSON data for chart rendering
+- 6-month trend analysis
+- Category-wise spending trends
 
-#### UI/UX
-- ✅ Modern Material Design 3
-- ✅ Jetpack Compose
-- ✅ Dark/Light theme support
-- ✅ Responsive layouts
-- ✅ Smooth animations
-
----
-
-## 🔄 Data Flow
-
-### Transaction Upload Flow
-
-1. **User uploads CSV/Excel** → File parsed
-2. **For each transaction**:
-   - Preprocess narration
-   - Check user corrections (preprocessed)
-   - If match → Use correction
-   - Else → Check keywords
-   - If match → Use keyword category
-   - Else → Run ML model
-3. **Save to database** with predictions
-4. **Display in UI** with confidence scores
-
-### User Correction Flow
-
-1. **User corrects category** in UI
-2. **Save to database** (update transaction)
-3. **Save to JSON** (`user_corrections.json`)
-   - Narration preprocessed before storing
-   - Includes `userId` and `transactionId` (for Efficient Mode cloud sync)
-   - Stored in-memory for fast lookup
-4. **Future predictions** automatically use correction
-5. **Efficient Mode** (future): 
-   - Sync corrections to cloud for cross-device access
-   - Generate vector embeddings using DistilBERT
-   - Store in vector database for similarity matching
-   - Share common corrections (commodities) with other users
-
-### Model Training Flow
-
-1. **Export corrections** from database → CSV
-2. **Load training data** + corrections
-3. **Train DistilBERT** (multi-task)
-4. **Convert to PyTorch Mobile** (.ptl)
-5. **Copy to mobile app** assets
-6. **Mobile app** loads model on startup
-
----
-
-## 📁 Key Files
-
-### Backend
-- `TransactionController.java` - REST endpoints
-- `TransactionService.java` - Business logic
-- `LocalModelInferenceService.java` - Python script caller
-- `TransactionCategorizationService.java` - Prediction orchestration
-- `SpendingPatternService.java` - Pattern detection
-- `TrendAnalysisService.java` - Trend analysis
-- `SpendingPredictionService.java` - Future predictions
-- `FinancialNudgeService.java` - Nudge generation
-
-### Mobile
-- `BudgetBuddyApplication.kt` - App initialization
-- `PyTorchMobileInferenceService.kt` - ML inference
-- `KeywordMatcher.kt` - Keyword matching
-- `TextPreprocessor.kt` - Text preprocessing
-- `TransactionViewModel.kt` - Transaction UI logic
-- `FinancialGuidanceScreen.kt` - Guidance UI
-- `BudgetBuddyDatabase.kt` - Room database
-
-### ML
-- `train_distilbert.py` - Model training
-- `inference_local.py` - Inference script (called from Java)
-- `distilbert_inference.py` - Core inference module
-- `preprocessing_utils.py` - Text preprocessing
-- `add_correction.py` - Add corrections to JSON
-- `export_corrections.py` - Export from database
+### 11. ML Anomaly Detection
+- Isolation Forest algorithm
+- Filters regular monthly spending
+- Identifies unusual transactions
+- Intent classification
+- Async loading with manual trigger
+- "View Transactions" link for each anomaly
 
 ---
 
 ## 🗄️ Database Schema
 
-### Spring Boot (MySQL)
-- `transaction` - Transactions with ML predictions
-- `user` - Users
-- `category_keyword` - Keyword mappings
-- `spending_pattern` - Detected patterns
-- `spending_prediction` - Future predictions
-- `financial_nudge` - Personalized nudges
+### Core Tables
+- `transaction` - All transactions with ML predictions
+- `users` - User accounts
+- `category_keyword` - Keyword mappings (Taxonomy/Manual/Corrected)
 
-### Mobile (SQLite/Room)
-- `transactions` - Transactions (same structure)
-- `users` - Users
-- `category_keywords` - Keyword mappings
-- `spending_patterns` - Patterns
-- `spending_predictions` - Predictions
-- `financial_nudges` - Nudges
-- **Version**: 2 (with migrations)
+### Financial Guidance Tables
+- `category_overspending_alert` - Category overspending alerts
+- `money_leak` - Top spending leaks
+- `savings_projection` - Year-end savings projections
+- `weekend_overspending` - Weekend spending analysis
+- `salary_week_analysis` - Salary week analysis
+- `spending_patterns` - Detected spending patterns
 
----
-
-## 🚀 Recent Updates
-
-### User Corrections System
-- ✅ JSON-based corrections storage
-- ✅ Preprocessed narration matching
-- ✅ In-memory cache for fast lookup
-- ✅ Automatic application during inference
-- ✅ UI updates immediately reflect corrections
-
-### ML Inference Order
-- ✅ User corrections (highest priority)
-- ✅ Keyword matching (rule-based)
-- ✅ DistilBERT model (ML prediction)
-
-### Mobile App
-- ✅ PyTorch Mobile integration
-- ✅ On-device ML inference
-- ✅ Keyword matching from database
-- ✅ Financial Guidance System
-- ✅ Complete feature parity with backend
-
-### Code Cleanup
-- ✅ Removed unused code
-- ✅ Removed duplicate files
-- ✅ Consolidated documentation
-- ✅ Fixed build issues
+### Removed Tables (Cleanup Completed)
+- ~~`financial_nudges`~~ - Removed (unused service)
+- ~~`spending_predictions`~~ - Removed (unused service)
 
 ---
 
-## 📱 Mobile App Details
+## 🔄 Event-Driven Architecture
 
-### Build Configuration
-- **minSdk**: 26
-- **targetSdk**: 34
-- **Kotlin**: 1.9.20
-- **Compose**: 1.5.8
-- **PyTorch Mobile**: 2.1.0
+### Transaction Change Events
+- **Event**: `TransactionChangedEvent`
+- **Triggers**: Transaction created, updated, or deleted
+- **Listener**: `FinancialGuidanceUpdateListener`
+- **Behavior**: 
+  - Async processing
+  - Debouncing (30-second window per user)
+  - Automatic recalculation of all guidance features
+  - Force update option for manual reloads
 
-### Model Files (Assets)
-- `distilbert_model.ptl` - PyTorch Mobile model (~255 MB, not in git)
-- `model_info.json` - Model metadata
-- `vocab.txt` - Tokenizer vocabulary
-- `keywords.json` - Category keywords (648 keywords)
-
-### Key Features
-- Offline-first (all data local)
-- On-device ML (no server needed)
-- Fast predictions (in-memory corrections + keywords)
-- Complete feature set matching backend
-
----
-
-## 🔐 Security & Privacy
-
-- **Local-first**: All data stored locally
-- **No cloud sync**: Data never leaves device (mobile)
-- **Encryption**: Can be added with SQLCipher (commented out)
-- **Password**: Stored as plain text (should be hashed in production)
-
----
-
-## ☁️ Efficient Mode (Planned Feature)
-
-### Overview
-**Efficient Mode** is a planned cloud synchronization feature that will allow user corrections to be synced across multiple devices and instances. The infrastructure is already in place and ready for implementation. The system will leverage **vector databases** to identify and share common corrections (commodities) among users, creating a collaborative learning ecosystem.
-
-### Current Status
-- ✅ **Backend Infrastructure Ready**: User corrections already store `userId` and `transactionId` metadata
-- ✅ **Data Format**: Corrections JSON includes optional `userId` and `transactionId` fields
-- ⏳ **UI**: Efficient Mode button exists in UI but is currently disabled (marked as "Coming soon")
-- ⏳ **Cloud Sync**: Actual sync functionality to be implemented
-- ⏳ **Vector Database**: To be integrated for similarity matching and commodity sharing
-
-### How It Works (Planned)
-
-#### Data Structure
-User corrections in `user_corrections.json` already support Efficient Mode metadata:
-```json
-{
-  "narration": "UPI-PAYTM-MERCHANT",
-  "category": "Shopping",
-  "userId": "1",                    // For cloud sync
-  "transactionId": "12345",         // For cloud sync
-  "timestamp": "2024-11-17T10:30:00"
-}
+### Update Flow
+```
+Transaction Change → TransactionChangedEvent → 
+FinancialGuidanceUpdateListener → 
+Update All Guidance Services → 
+Save to Database
 ```
 
-#### Vector Database Integration
-Efficient Mode will use vector databases (e.g., Pinecone, Weaviate, or Chroma) to:
-
-1. **Embed Transaction Narrations**: Convert preprocessed narrations into vector embeddings using the same DistilBERT model
-2. **Similarity Matching**: Find similar corrections from other users using cosine similarity
-3. **Commodity Detection**: Identify commonly corrected patterns across the user base
-4. **Shared Learning**: Automatically suggest corrections based on what other users have corrected for similar transactions
-
-#### Benefits
-1. **Cross-Device Sync**: Corrections made on one device/instance sync to all others
-2. **Centralized Learning**: All user corrections contribute to model retraining
-3. **Backup**: Corrections stored in cloud, not just locally
-4. **Multi-User Support**: Each user's corrections tracked separately via `userId`
-5. **Commodity Sharing**: Common corrections shared among users via vector similarity
-6. **Faster Learning**: New users benefit from corrections made by existing users
-7. **Pattern Recognition**: Identify merchant patterns and common transaction types across users
-
-#### Architecture (Planned)
-
-```
-User Correction Flow:
-1. User makes correction → Saved locally (userId, transactionId)
-2. Efficient Mode ON → Upload to cloud
-3. Vector DB:
-   - Embed narration (preprocessed) using DistilBERT
-   - Store vector + category + metadata
-   - Find similar vectors (cosine similarity > threshold)
-4. Commodity Detection:
-   - If similar corrections exist from multiple users → Mark as "commodity"
-   - Share commodity corrections with all users
-   - Use for faster predictions (commodity lookup before model inference)
-```
-
-#### Implementation Details
-- **Storage**: Corrections stored with `userId` and `transactionId` for efficient cloud sync
-- **Format**: JSON structure already supports metadata fields
-- **Backend**: `add_correction.py` and `TransactionService.java` already pass these fields
-- **UI**: Mode selector exists in transaction list page (currently disabled)
-- **Vector Embeddings**: Will use DistilBERT embeddings for similarity matching
-- **Commodity Threshold**: Configurable similarity threshold (e.g., 0.85) for commodity detection
-
-#### Future Work
-- Implement cloud API endpoints for sync
-- Integrate vector database (Pinecone/Weaviate/Chroma)
-- Add embedding generation pipeline (using DistilBERT)
-- Implement similarity search and commodity detection
-- Add authentication/authorization
-- Implement conflict resolution (when same correction exists on multiple devices)
-- Add sync status indicators in UI
-- Enable Efficient Mode button when backend is ready
-- Create commodity correction cache for faster lookups
-- Add privacy controls (opt-in/opt-out for commodity sharing)
-
 ---
 
-## 📈 Performance
+## 🚀 Getting Started
 
-### Backend
-- **Batch prediction**: Processes multiple transactions in one Python call
-- **Caching**: Model loaded once (singleton)
-- **Keyword matching**: O(n) where n = number of keywords
-- **Corrections**: O(1) in-memory lookup
-
-### Mobile
-- **On-device inference**: No network latency
-- **In-memory corrections**: Instant lookup
-- **Room database**: Efficient local storage
-- **Batch operations**: Optimized for bulk imports
-
----
-
-## 🛠️ Development Setup
-
-### Backend
-```bash
-# Prerequisites
+### Prerequisites
 - Java 17+
-- MySQL
-- Python 3.9+ with PyTorch
+- Python 3.9+
+- MySQL 8.0+
+- Gradle 8.x
 
-# Run
-./gradlew bootRun
-```
+### Setup Steps
 
-### Mobile
-```bash
-# Prerequisites
-- Android Studio
-- Android SDK
-- Python 3.9+ (for model conversion)
+1. **Clone and Setup**
+   ```bash
+   git clone <repository>
+   cd budgetbuddy-ai
+   chmod +x setup_environment.sh
+   bash setup_environment.sh
+   ```
 
-# Build
-cd mobile-version
-./gradlew assembleDebug
+2. **Database Setup**
+   ```bash
+   mysql -u root -p
+   CREATE DATABASE budgetbuddy_app;
+   ```
 
-# Install
-./gradlew installDebug
-```
+3. **Run Application**
+   ```bash
+   ./gradlew bootRun
+   ```
 
-### ML Model
-```bash
-# Generate model
-cd mybudget-ai
-python3 -m venv venv
-source venv/bin/activate
-pip install torch transformers safetensors pyyaml
-python3 convert_to_pytorch_mobile.py
-```
-
----
-
-## 📝 Documentation Files
-
-- `README.md` - Main project README
-- `mobile-version/README.md` - Mobile app README
-- `mobile-version/MODEL_SETUP_INSTRUCTIONS.md` - Model setup guide
-- `mobile-version/FEATURE_VALIDATION.md` - Feature comparison
-- `mobile-version/PREDICTION_COMPARISON.md` - ML logic comparison
-- `mobile-version/COMMANDS.md` - Useful commands
-- `PROJECT_SUMMARY.md` - This file
+4. **Access Web Interface**
+   - Home: http://localhost:8080
+   - Transactions: http://localhost:8080/transactions
+   - Financial Guidance: http://localhost:8080/guidance/dashboard
+   - Dashboard: http://localhost:8080/dashboard
 
 ---
 
-## 🎯 Project Status
+## 📝 Recent Changes (v2.1)
 
-### ✅ Completed
-- Spring Boot backend with full features
-- Android mobile app with feature parity
-- ML model training and conversion
-- User corrections system
-- Financial Guidance System
-- Keyword matching
-- Text preprocessing
-- Database migrations
-- UI/UX improvements
+### Code Cleanup (January 2025)
+- ✅ Removed unused services: `FinancialNudgeService`, `SpendingPredictionService`, `TrendAnalysisService`
+- ✅ Removed unused models: `FinancialNudge`, `SpendingPrediction`
+- ✅ Removed unused repositories: `FinancialNudgeRepository`, `SpendingPredictionRepository`
+- ✅ Fixed `getCurrentUser()` method in `UserService`
+- ✅ Created SQL script to drop unused database tables
+- ✅ Updated `DataCleanupService` to remove references to deleted repositories
 
-### 🔄 In Progress / Future
-- Advanced filtering options
-- Category management UI enhancements
-- Export functionality
-- **Efficient Mode** (cloud sync + vector database for commodity sharing - infrastructure ready)
-- Database encryption
-- Performance optimizations
+### Feature Enhancements
+- ✅ Fixed duplicate Category Overspending alerts
+- ✅ Added "Clear All Data" functionality with UI button
+- ✅ Enhanced "Unusual Patterns" section with better UI and transaction links
+- ✅ Added "View Transactions" links to all guidance sections
+- ✅ Improved narration preprocessing with centralized utility
+
+### Bug Fixes
+- ✅ Fixed compilation errors (getUsername → getName)
+- ✅ Fixed SQL column naming issues
+- ✅ Fixed Thymeleaf expression errors
+- ✅ Fixed empty state handling
 
 ---
 
 ## 📊 Statistics
 
-- **Categories**: 10+ top-level, 30+ subcategories
-- **Keywords**: 648 keyword mappings
-- **Model Size**: ~255 MB (quantized)
-- **Training Data**: 10K+ transactions
-- **Mobile APK**: ~50-60 MB (with model)
+- **Total Controllers**: 8
+- **Total Services**: 14
+- **Total Repositories**: 9
+- **Total Models**: 9
+- **Financial Guidance Features**: 11 (10 rule-based + 1 ML-based)
+- **ML Model Accuracy**: 89.61% macro F1-score, 90.10% weighted F1-score
+- **Supported Categories**: 26+ categories with subcategories
 
 ---
 
-## 🔗 Key Workflows
+## 🔮 Future Enhancements
 
-### Adding a Transaction
-1. User enters narration + amount
-2. System preprocesses narration
-3. Checks corrections → keywords → model
-4. Returns prediction with confidence
-5. User confirms or corrects
-6. Saved to database + corrections JSON
+### Planned Features
+- [ ] Multi-user support with proper authentication
+- [ ] Budget setting and tracking
+- [ ] Export reports (PDF, Excel)
+- [ ] Email notifications for alerts
+- [ ] Mobile app sync with backend
+- [ ] Efficient Mode (cloud sync for corrections)
+- [ ] Vector database for commodity corrections
+- [ ] Advanced chart visualizations
 
-### Training Model with Corrections
-1. Export corrections from database
-2. Load training data + corrections
-3. Train DistilBERT (multi-task)
-4. Convert to PyTorch Mobile
-5. Copy to mobile assets
-6. Mobile app uses updated model
-
-### Financial Guidance Generation
-1. Analyze transaction history
-2. Detect spending patterns
-3. Calculate trends
-4. Predict future spending
-5. Generate personalized nudges
-6. Display in UI with charts
+### Technical Improvements
+- [ ] Unit tests and integration tests
+- [ ] API documentation (Swagger/OpenAPI)
+- [ ] Performance optimization for large datasets
+- [ ] Caching layer for frequently accessed data
+- [ ] Background job processing for heavy calculations
 
 ---
 
-## 🎓 Learning Outcomes
+## 📚 Documentation
 
-This project demonstrates:
-- Multi-platform development (Web + Mobile)
-- ML model integration (Python → Java/Kotlin)
-- On-device ML inference
-- Multi-task learning
-- Text preprocessing and NLP
-- Database design and migrations
-- Modern Android development (Compose, MVVM)
-- Spring Boot best practices
-- User feedback integration
-- Financial data analysis
+- **README.md** - Setup and installation guide
+- **PROJECT_SUMMARY.md** - This document
+- **UNUSED_CODE_ANALYSIS.md** - Code cleanup documentation
+- **ANOMALY_DETECTION_EXPLANATION.md** - ML anomaly detection details
+- **scripts/drop_unused_tables.sql** - Database cleanup script
 
 ---
 
-## 📞 Support & Maintenance
+## 👥 Development
 
-### Model Updates
-- Retrain when corrections accumulate
-- Convert to mobile format
-- Update assets in mobile app
+### Code Structure
+- **Controllers**: Handle HTTP requests and responses
+- **Services**: Business logic and orchestration
+- **Repositories**: Data access layer (JPA)
+- **Models**: Entity classes
+- **Events**: Spring event-driven updates
+- **Utils**: Utility classes for common operations
 
-### Database Migrations
-- Backend: JPA auto-migration
-- Mobile: Room migrations (version 2)
-
-### Corrections Management
-- Stored in JSON (easy to edit)
-- Preprocessed for matching
-- In-memory for performance
+### Best Practices
+- ✅ Separation of concerns (Controller → Service → Repository)
+- ✅ Event-driven updates for financial guidance
+- ✅ Centralized text preprocessing
+- ✅ Consistent error handling
+- ✅ Comprehensive logging
+- ✅ Transaction management with proper rollback
 
 ---
 
-*Last Updated: November 2024*
+## 📄 License
 
+[Add your license information here]
+
+---
+
+**Last Updated**: January 2025  
+**Version**: 2.1  
+**Status**: ✅ Production Ready

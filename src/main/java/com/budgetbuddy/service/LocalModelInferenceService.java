@@ -107,13 +107,16 @@ public class LocalModelInferenceService {
                 scriptPath = new java.io.File(projectRoot, scriptPath).getAbsolutePath();
             }
             
-            // Pass JSON array as single argument
+            // Pass JSON array via stdin to avoid shell escaping issues with special characters
+            // This is safer than command-line arguments which can break with newlines, quotes, etc.
+            String jsonInput = jsonArray.toString();
+            
             // Use -u flag for unbuffered output (immediate stderr/stdout)
             String[] command = {
                 pythonCommand,
                 "-u",  // Unbuffered mode - ensures immediate output
                 scriptPath,
-                jsonArray.toString()
+                "-"  // Use "-" to indicate stdin input
             };
             
             ProcessBuilder pb = new ProcessBuilder(command);
@@ -123,6 +126,15 @@ public class LocalModelInferenceService {
             // Start Python process (command details not logged for security)
             Process process = pb.start();
             logger.info("✅ Python process started. PID: {} (processing {} transactions)", process.pid(), descriptions.size());
+            
+            // Write JSON to stdin (avoids shell escaping issues)
+            try (java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(
+                    process.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8)) {
+                writer.write(jsonInput);
+                writer.flush();
+            }
+            // Close stdin to signal end of input
+            process.getOutputStream().close();
             
             // Read stdout in separate thread (non-blocking)
             StringBuilder output = new StringBuilder();

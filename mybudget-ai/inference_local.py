@@ -86,16 +86,19 @@ def extract_category_parts(category: str) -> tuple:
     return (category, None)
 
 
-def load_corrections():
+def load_corrections(force_reload=False):
     """
-    Load user corrections from JSON file into memory (singleton).
+    Load user corrections from JSON file into memory (singleton with optional reload).
     
     Preprocesses narrations before storing to match how the model preprocesses input.
     This ensures corrections match even if the raw narration differs (e.g., with/without UPI tags).
+    
+    Args:
+        force_reload: If True, reload corrections even if already cached (default: False)
     """
     global _corrections_cache
     
-    if _corrections_cache is None:
+    if _corrections_cache is None or force_reload:
         _corrections_cache = {}
         
         # Get script directory
@@ -114,16 +117,14 @@ def load_corrections():
                                 narration = correction.get("narration", "").strip()
                                 category = correction.get("category", "").strip()
                                 if narration and category:
-                                    # Preprocess narration to match how model preprocesses input
-                                    # This ensures corrections work even if raw narration format differs
+                                    # IMPORTANT: Corrections in JSON are now preprocessed using Python preprocessing_utils.
+                                    # Preprocess the narration when loading to ensure consistency.
+                                    # This ensures corrections match transactions that are also preprocessed with Python.
                                     if PREPROCESSING_AVAILABLE:
                                         preprocessed_narration = preprocess_upi_narration(narration, preserve_p2p_clues=True)
                                     else:
-                                        # Fallback: use clean_text from distilbert_inference
-                                        try:
-                                            preprocessed_narration = clean_text(narration)
-                                        except:
-                                            preprocessed_narration = narration.strip()
+                                        # Fallback: use as-is
+                                        preprocessed_narration = narration.strip()
                                     
                                     # Only store if preprocessing didn't make it empty
                                     if preprocessed_narration and preprocessed_narration.strip():
@@ -137,7 +138,8 @@ def load_corrections():
                                         _corrections_cache[key] = category
                                         loaded_count += 1
                             
-                            sys.stderr.write(f"✅ Loaded {loaded_count} user corrections into memory (preprocessed)\n")
+                            reload_msg = " (reloaded)" if force_reload else ""
+                            sys.stderr.write(f"✅ Loaded {loaded_count} user corrections into memory{reload_msg}\n")
                         else:
                             sys.stderr.write(f"⚠️ Corrections file is not a list, skipping\n")
             except Exception as e:
@@ -168,24 +170,47 @@ def get_corrected_category(description: str) -> str:
     if not corrections:
         return None
     
-    # Preprocess description to match how corrections were stored
-    # This ensures "UPI-STARBUCKS-123" matches correction stored as "STARBUCKS"
+    # IMPORTANT: Corrections in JSON are already preprocessed using Python preprocessing_utils.
+    # We need to preprocess the transaction narration using the same Python preprocessing
+    # to match what's stored in corrections.
+    
+    # Preprocess transaction narration using Python preprocessing (same as corrections)
     if PREPROCESSING_AVAILABLE:
         preprocessed_desc = preprocess_upi_narration(description, preserve_p2p_clues=True)
     else:
-        # Fallback: use clean_text from distilbert_inference
-        try:
-            preprocessed_desc = clean_text(description)
-        except:
-            preprocessed_desc = description.strip()
+        # Fallback: simple cleaning
+        import re
+        preprocessed_desc = description.strip()
+        preprocessed_desc = re.sub(r'(?i)^UPI[-/]', '', preprocessed_desc)
+        preprocessed_desc = re.sub(r'(?i)@[A-Z0-9]+', '', preprocessed_desc)
+        preprocessed_desc = re.sub(r'[-/]\d{9,}', '', preprocessed_desc)
+        preprocessed_desc = re.sub(r'\s+\d{9,}', '', preprocessed_desc)
+        preprocessed_desc = re.sub(r'[-/]+', ' ', preprocessed_desc)
+        preprocessed_desc = re.sub(r'\s+', ' ', preprocessed_desc)
+        preprocessed_desc = preprocessed_desc.strip()
     
     if not preprocessed_desc or not preprocessed_desc.strip():
         # If preprocessing made it empty, try original
         preprocessed_desc = description.strip()
     
-    # Check match (case-insensitive, preprocessed)
+    # Check match (case-insensitive, preprocessed using Python)
     key = preprocessed_desc.lower().strip()
-    return corrections.get(key)
+    result = corrections.get(key)
+    
+    # Debug: Log if we have corrections but didn't find a match (helps diagnose matching issues)
+    if not result and len(corrections) > 0:
+        # Only log first few misses to avoid spam
+        if not hasattr(get_corrected_category, '_miss_count'):
+            get_corrected_category._miss_count = 0
+        if get_corrected_category._miss_count < 3:
+            sys.stderr.write(f"🔍 Correction lookup: '{description[:50]}...' -> preprocessed: '{key[:50]}...' -> NOT FOUND\n")
+            get_corrected_category._miss_count += 1
+            # Show sample correction keys for debugging
+            if get_corrected_category._miss_count == 1:
+                sample_keys = list(corrections.keys())[:3]
+                sys.stderr.write(f"   Sample correction keys in cache: {[k[:50] for k in sample_keys]}\n")
+    
+    return result
 
 
 def load_model():
@@ -342,6 +367,7 @@ def predict_batch(descriptions: list) -> list:
     Much faster than calling predict() multiple times!
     
     Checks user corrections first, then uses model for remaining.
+    Always reloads corrections to ensure latest corrections are used.
     
     Args:
         descriptions: List of transaction narrations/descriptions
@@ -351,8 +377,8 @@ def predict_batch(descriptions: list) -> list:
     """
     global _predictor
     
-    # Load corrections if not already loaded
-    corrections = load_corrections()
+    # Force reload corrections to ensure latest corrections are used (important for refresh)
+    corrections = load_corrections(force_reload=True)
     
     if _predictor is None:
         return [{
@@ -366,6 +392,7 @@ def predict_batch(descriptions: list) -> list:
     indices_for_model = []  # Indices of narrations that need model prediction
     
     # First pass: Check corrections for all descriptions
+    correction_count = 0
     for i, desc in enumerate(descriptions):
         if not desc or not desc.strip():
             results.append({
@@ -378,6 +405,7 @@ def predict_batch(descriptions: list) -> list:
             corrected_category = get_corrected_category(desc)
             if corrected_category:
                 # Use correction
+                correction_count += 1
                 top_category, subcategory = extract_category_parts(corrected_category)
                 batch_result = {
                     "description": desc,
@@ -391,11 +419,16 @@ def predict_batch(descriptions: list) -> list:
                 if subcategory:
                     batch_result["predicted_subcategory"] = subcategory
                 results.append(batch_result)
+                # Log correction usage (to stderr so it doesn't interfere with JSON output)
+                sys.stderr.write(f"✅ Using correction for: '{desc[:50]}...' -> '{top_category}'\n")
             else:
                 # No correction, will use model
                 results.append(None)  # Placeholder
                 descriptions_for_model.append(desc)
                 indices_for_model.append(i)
+    
+    if correction_count > 0:
+        sys.stderr.write(f"📝 Applied {correction_count} corrections out of {len(descriptions)} transactions\n")
     
     # Second pass: Batch predict remaining descriptions with model
     if descriptions_for_model:
@@ -446,8 +479,8 @@ def main():
     """Main entry point"""
     # Load corrections and model ONCE
     try:
-        # Load corrections first (fast, in-memory)
-        load_corrections()
+        # Load corrections first (fast, in-memory) - don't force reload on startup
+        load_corrections(force_reload=False)
         # Load model
         load_model()
     except Exception as e:
@@ -459,22 +492,15 @@ def main():
         print(json.dumps(result), file=sys.stdout, flush=True)
         sys.exit(1)
     
-    # Check if this is batch mode (JSON array as first argument)
-    if len(sys.argv) < 2:
-        result = {
-            "error": "Missing description argument",
-            "predicted_category": "Uncategorized",
-            "predicted_subcategory": None
-        }
-        print(json.dumps(result), file=sys.stdout, flush=True)
-        sys.exit(1)
-    
-    first_arg = sys.argv[1].strip()
-    
-    # If argument starts with '[' it's a JSON array (batch mode)
-    if first_arg.startswith('['):
+    # Check if input is from stdin (batch mode with "-" argument) or command line
+    if len(sys.argv) >= 2 and sys.argv[1].strip() == "-":
+        # Read JSON from stdin (safer for special characters, newlines, etc.)
         try:
-            descriptions = json.loads(first_arg)
+            stdin_input = sys.stdin.read()
+            if not stdin_input or not stdin_input.strip():
+                raise ValueError("Empty input from stdin")
+            
+            descriptions = json.loads(stdin_input.strip())
             if not isinstance(descriptions, list):
                 raise ValueError("Batch input must be a JSON array")
             
@@ -493,28 +519,76 @@ def main():
             sys.exit(1 if has_real_error else 0)
         except json.JSONDecodeError as e:
             result = {
-                "error": f"Invalid JSON array: {str(e)}",
+                "error": f"Invalid JSON array from stdin: {str(e)}",
                 "predicted_category": "Uncategorized",
                 "predicted_subcategory": None
             }
             print(json.dumps(result), file=sys.stdout, flush=True)
             sys.exit(1)
-    else:
-        # Single prediction mode (backward compatible)
-        description = first_arg
+        except Exception as e:
+            result = {
+                "error": f"Error reading from stdin: {str(e)}",
+                "predicted_category": "Uncategorized",
+                "predicted_subcategory": None
+            }
+            print(json.dumps(result), file=sys.stdout, flush=True)
+            sys.exit(1)
+    elif len(sys.argv) >= 2:
+        first_arg = sys.argv[1].strip()
         
-        # Predict
-        result = predict(description)
-        
-        # Output JSON to stdout (only JSON, no other output)
-        json_output = json.dumps(result)
-        print(json_output, file=sys.stdout, flush=True)
-        
-        # Exit with error code only if there's an actual error
-        if "error" in result:
-            error_msg = result.get("error", "")
-            if error_msg and error_msg not in ["Empty description"]:
+        # If argument starts with '[' it's a JSON array (batch mode - backward compatible)
+        if first_arg.startswith('['):
+            try:
+                descriptions = json.loads(first_arg)
+                if not isinstance(descriptions, list):
+                    raise ValueError("Batch input must be a JSON array")
+                
+                # Batch predict
+                results = predict_batch(descriptions)
+                
+                # Output JSON array to stdout
+                json_output = json.dumps(results)
+                print(json_output, file=sys.stdout, flush=True)
+                
+                # Exit with error only if there are real errors (not just "Uncategorized")
+                has_real_error = any(
+                    "error" in r and r.get("error") not in ["Empty description"]
+                    for r in results
+                )
+                sys.exit(1 if has_real_error else 0)
+            except json.JSONDecodeError as e:
+                result = {
+                    "error": f"Invalid JSON array: {str(e)}",
+                    "predicted_category": "Uncategorized",
+                    "predicted_subcategory": None
+                }
+                print(json.dumps(result), file=sys.stdout, flush=True)
                 sys.exit(1)
+        else:
+            # Single prediction mode (backward compatible)
+            description = first_arg
+        
+            # Predict
+            result = predict(description)
+            
+            # Output JSON to stdout (only JSON, no other output)
+            json_output = json.dumps(result)
+            print(json_output, file=sys.stdout, flush=True)
+            
+            # Exit with error code only if there's an actual error
+            if "error" in result:
+                error_msg = result.get("error", "")
+                if error_msg and error_msg not in ["Empty description"]:
+                    sys.exit(1)
+    else:
+        # No arguments - error
+        result = {
+            "error": "Missing description argument",
+            "predicted_category": "Uncategorized",
+            "predicted_subcategory": None
+        }
+        print(json.dumps(result), file=sys.stdout, flush=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

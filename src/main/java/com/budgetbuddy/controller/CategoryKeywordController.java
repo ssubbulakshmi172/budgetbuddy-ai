@@ -24,25 +24,27 @@ public class CategoryKeywordController {
 
     @GetMapping({"", "/"})
     public String listAllCategories(
-            @RequestParam(value = "view", required = false, defaultValue = "all") String view,
+            @RequestParam(value = "view", required = false, defaultValue = "corrected") String view,
             Model model) {
         
+        List<CategoryKeyword> correctedCategories = categoryKeywordService.getCorrectedCategories();
         List<CategoryKeyword> taxonomyCategories = categoryKeywordService.getTaxonomyCategories();
         List<CategoryKeyword> manualCategories = categoryKeywordService.getManualCategories();
-        List<CategoryKeyword> allCategories = categoryKeywordService.getAllCategories();
         
+        model.addAttribute("correctedCategories", correctedCategories);
         model.addAttribute("taxonomyCategories", taxonomyCategories);
         model.addAttribute("manualCategories", manualCategories);
-        model.addAttribute("allCategories", allCategories);
         model.addAttribute("currentView", view);
         
         // For backward compatibility, also include the old attribute
-        if ("taxonomy".equals(view)) {
+        if ("corrected".equals(view)) {
+            model.addAttribute("categoryKeywords", correctedCategories);
+        } else if ("taxonomy".equals(view)) {
             model.addAttribute("categoryKeywords", taxonomyCategories);
         } else if ("manual".equals(view)) {
             model.addAttribute("categoryKeywords", manualCategories);
         } else {
-            model.addAttribute("categoryKeywords", allCategories);
+            model.addAttribute("categoryKeywords", correctedCategories);
         }
         
         return "categories/list";
