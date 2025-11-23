@@ -132,35 +132,6 @@ Download the latest Android APK from [GitHub Releases](https://github.com/ssubbu
 
 ![BudgetBuddy AI Architecture Diagram](src/main/resources/static/images/budgetbuddy-ai-architecture-diagram.png)
 
-> **Visual Architecture Diagrams**: See `ARCHITECTURE_BETA.md` for component-focused Mermaid diagrams showing Server, Mobile, and Database architecture.
-
-```
-┌─────────────────────┐
-│  Spring Boot App   │  (Java + Thymeleaf)
-│  Port: 8080        │
-│  - Batch Predictions│
-│  - Financial Guidance│
-│  - Pattern Detection│
-└──────────┬──────────┘
-           │ ProcessBuilder
-           ▼
-┌─────────────────────┐
-│  Local Inference   │  (Python + DistilBERT)
-│  inference_local.py│
-│  - Batch Support   │
-│  - Offline Mode    │
-└─────────────────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  ML Model          │
-│  DistilBERT        │
-│  Multi-task        │
-│  - Category        │
-│  - Transaction Type│
-│  - Intent          │
-└─────────────────────┘
-```
 
 ## 📁 Project Structure
 
