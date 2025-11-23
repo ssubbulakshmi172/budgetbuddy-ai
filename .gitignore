@@ -58,6 +58,9 @@ mybudget-ai/models/**/*.safetensors
 # PyTorch Mobile model files (too large for GitHub)
 *.ptl
 mobile-version/app/src/main/assets/*.ptl
+# Android APK build outputs (exceed GitHub 100MB limit)
+mobile-version/app/build/outputs/apk/**/*.apk
+*.apk
 # Large CSV files
 *.csv
 !mybudget-ai/transactions_synthetic.csv
