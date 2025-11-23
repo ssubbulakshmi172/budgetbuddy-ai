@@ -100,6 +100,20 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Virtual Environment Setup**: Mobile app uses Python venv for model conversion (ARM64 support for Apple Silicon)
 - **Feature Parity**: Mobile app delete-all transactions feature matches Spring Boot's clear-all-data behavior (clears transactions + financial guidance data)
 
+## 📱 Download Mobile App
+
+Download the latest Android APK from [GitHub Releases](https://github.com/ssubbulakshmi172/budgetbuddy-ai/releases).
+
+**Latest Release**: Check the [Releases page](https://github.com/ssubbulakshmi172/budgetbuddy-ai/releases) for the most recent version.
+
+**Architecture-specific APKs:**
+- **ARM64 (arm64-v8a)**: For most modern Android devices (recommended)
+- **ARM32 (armeabi-v7a)**: For older Android devices
+- **x86**: For Android emulators and x86 devices
+- **x86_64**: For 64-bit Android emulators
+
+**Note**: APK files are distributed via GitHub Releases due to file size limitations. See [RELEASE_APK.md](RELEASE_APK.md) for detailed instructions on building and uploading APKs.
+
 ## 📊 Performance Metrics
 
 **Current Model Performance (Final):**
@@ -115,6 +129,8 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Total Improvement**: 460% increase in Macro F1 (5.6x improvement)
 
 ## 🏗️ Architecture
+
+![BudgetBuddy AI Architecture Diagram](src/main/resources/static/images/budgetbuddy-ai-architecture-diagram.png)
 
 > **Visual Architecture Diagrams**: See `ARCHITECTURE_BETA.md` for component-focused Mermaid diagrams showing Server, Mobile, and Database architecture.
 
