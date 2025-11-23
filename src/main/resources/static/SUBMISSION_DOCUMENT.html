@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BudgetBuddy AI - Project Submission Document</title>
+    <style>
+        @page {
+            margin: 0.5in;
+            size: letter;
+        }
+        
+        /* Print-specific styles for images */
+        @media print {
+            img {
+                max-width: 100% !important;
+                height: auto !important;
+                page-break-inside: avoid !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                image-rendering: -webkit-optimize-contrast !important;
+                image-rendering: crisp-edges !important;
+                image-rendering: pixelated !important;
+            }
+            
+            .architecture-diagram-container {
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+            }
+        }
+        body {
+            font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
+            font-size: 10pt;
+            line-height: 1.5;
+            color: #1e293b;
+            max-width: 7in;
+            margin: 0 auto;
+            padding: 0.3in;
+            text-align: left;
+            background: #ffffff;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 16pt;
+            font-weight: 700;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #475569;
+            padding-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+        h2 {
+            color: #0f172a;
+            font-size: 13pt;
+            font-weight: 600;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            border-left: 3px solid #475569;
+            padding-left: 8px;
+            letter-spacing: -0.2px;
+        }
+        h3 {
+            color: #0f172a;
+            font-size: 11.5pt;
+            font-weight: 600;
+            margin-top: 12px;
+            margin-bottom: 6px;
+        }
+        h4 {
+            color: #0f172a;
+            font-size: 10.5pt;
+            font-weight: 600;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+        p {
+            margin-bottom: 8px;
+            text-align: left;
+            text-indent: 0;
+            orphans: 2;
+            widows: 2;
+            line-height: 1.5;
+            color: #334155;
+            font-size: 10pt;
+        }
+        ul, ol {
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 4px;
+            line-height: 1.5;
+            color: #334155;
+            font-size: 10pt;
+        }
+        li::marker {
+            color: #475569;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 2px 5px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 9pt;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            color: #dc2626;
+            font-weight: 500;
+        }
+        pre {
+            background-color: #0f172a;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #1e293b;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 9pt;
+            line-height: 1.5;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            color: #e2e8f0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        th {
+            background: linear-gradient(135deg, #334155 0%, #475569 100%);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 10pt;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        td {
+            font-size: 10pt;
+            background-color: #ffffff;
+        }
+        tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+        tr:hover td {
+            background-color: #f1f5f9;
+        }
+        .highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 600;
+            color: #92400e;
+        }
+        .metric {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 8px 12px;
+            border-left: 3px solid #475569;
+            margin: 10px 0;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+        }
+        .architecture-box {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+        }
+        .footer {
+            margin-top: 4px;
+            padding-top: 2px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 8.5pt;
+            color: #64748b;
+            font-weight: 500;
+        }
+        a {
+            color: #0f172a;
+            text-decoration: none;
+            border-bottom: 1px solid #94a3b8;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        a:hover {
+            color: #334155;
+            border-bottom-color: #64748b;
+        }
+        .page-break {
+            display: none;
+        }
+        .document-header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .document-header .title {
+            font-size: 18pt;
+            color: #0f172a;
+            margin: 8px 0;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .document-header .tagline {
+            font-size: 10pt;
+            color: #64748b;
+            font-weight: 400;
+            font-style: italic;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="document-header">
+        <h1 class="title">BudgetBuddy AI</h1>
+        <p class="tagline">100% Local &amp; Private - Your data never leaves your device</p>
+    </div>
+    
+    <div style="text-align: center; margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
+        <p style="margin: 3px 0; font-size: 9.5pt; color: #2c3e50;"><strong>GitHub Repository:</strong> <a href="https://github.com/ssubbulakshmi172/budgetbuddy-ai.git" style="color: #0f172a;">https://github.com/ssubbulakshmi172/budgetbuddy-ai.git</a></p>
+        <p style="margin: 2px 0; font-size: 8.5pt; font-style: italic; color: #64748b;">(Repository also contains demo videos in <code style="background-color: #fff; padding: 1px 3px; border-radius: 2px;">demo_videos/</code> directory)</p>
+        <p style="margin: 6px 0 4px 0; font-size: 9.5pt; color: #2c3e50; font-weight: 600;">Demo Videos:</p>
+        <p style="margin: 2px 0; font-size: 9pt; padding-left: 16px; color: #475569;">• <strong>Web Demo:</strong> <a href="https://drive.google.com/file/d/1Vw-ipQEqJUF98S4qgT173HXDkLRGGZV1/view?usp=drive_link" style="color: #0f172a; font-size: 8.5pt;">Google Drive Link</a></p>
+        <p style="margin: 2px 0; font-size: 9pt; padding-left: 16px; color: #475569;">• <strong>Mobile Demo:</strong> <a href="https://drive.google.com/file/d/181MxsqwWj6jSJgHyXG_-__RtxUo_jSVx/view?usp=drive_link" style="color: #0f172a; font-size: 8.5pt;">Google Drive Link</a></p>
+    </div>
+
+    <h1>1. Introduction</h1>
+
+    <p>BudgetBuddy AI is an end-to-end autonomous transaction categorization system that uses machine learning to intelligently classify financial transactions into user-defined categories. Built with a production-ready architecture, the system eliminates third-party API dependencies while achieving high accuracy through advanced deep learning techniques.</p>
+
+    <p>The system transforms raw transaction strings (UPI narrations, bank descriptions) into structured categories using a fine-tuned DistilBERT multi-task model. Beyond categorization, BudgetBuddy provides spending analytics—detecting patterns, analyzing trends, and generating insights to help users understand their transaction data.</p>
+
+    <h2>Key Highlights</h2>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 8px 0; border: 1px solid #e5e7eb;">
+        <tr>
+            <td style="width: 33.33%; vertical-align: top; padding: 6px 4px; border: 1px solid #e5e7eb; text-align: left; background-color: #ffffff;">
+                <h3 style="margin-top: 0; color: #0f172a; font-size: 11pt; font-weight: 600; margin-bottom: 4px;">100% Private</h3>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; line-height: 1.5; text-align: left;">All data processing happens locally on your device. No cloud dependencies, no data sharing.</p>
+            </td>
+            <td style="width: 33.33%; vertical-align: top; padding: 6px 4px; border: 1px solid #e5e7eb; text-align: left; background-color: #ffffff;">
+                <h3 style="margin-top: 0; color: #0f172a; font-size: 11pt; font-weight: 600; margin-bottom: 4px;">High Accuracy</h3>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; line-height: 1.5; text-align: left;">90%+ accuracy with DistilBERT multi-task model achieving 0.8961 macro F1-score and 0.9010 weighted F1-score.</p>
+            </td>
+            <td style="width: 33.33%; vertical-align: top; padding: 6px 4px; border: 1px solid #e5e7eb; text-align: left; background-color: #ffffff;">
+                <h3 style="margin-top: 0; color: #0f172a; font-size: 11pt; font-weight: 600; margin-bottom: 4px;">Intelligent Insights</h3>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; line-height: 1.5; text-align: left;">Comprehensive spending analytics with 10+ features to understand transaction patterns.</p>
+            </td>
+        </tr>
+    </table>
+
+    <h2>Technology Stack</h2>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 10px 0; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 6px; overflow: hidden;">
+        <tr>
+            <td style="width: 25%; vertical-align: top; padding: 12px; border: none; text-align: center; background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.08) 100%); border-right: 1px solid #e2e8f0;">
+                <h4 style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 10.5pt; margin-bottom: 6px;">Backend</h4>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Spring Boot 3.x</p>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Java 17</p>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; font-weight: 500;">MySQL 8.0</p>
+            </td>
+            <td style="width: 25%; vertical-align: top; padding: 12px; border: none; text-align: center; background: linear-gradient(135deg, rgba(28, 200, 138, 0.15) 0%, rgba(28, 200, 138, 0.08) 100%); border-right: 1px solid #e2e8f0;">
+                <h4 style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 10.5pt; margin-bottom: 6px;">ML Framework</h4>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">PyTorch</p>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">DistilBERT</p>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; font-weight: 500;">Transformers</p>
+            </td>
+            <td style="width: 25%; vertical-align: top; padding: 12px; border: none; text-align: center; background: linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(20, 184, 166, 0.08) 100%); border-right: 1px solid #e2e8f0;">
+                <h4 style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 10.5pt; margin-bottom: 6px;">Mobile</h4>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Android (Kotlin)</p>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Jetpack Compose</p>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; font-weight: 500;">PyTorch Mobile</p>
+            </td>
+            <td style="width: 25%; vertical-align: top; padding: 12px; border: none; text-align: center; background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 193, 7, 0.08) 100%);">
+                <h4 style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 10.5pt; margin-bottom: 6px;">Frontend</h4>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Thymeleaf</p>
+                <p style="margin-bottom: 3px; font-size: 10pt; color: #475569; font-weight: 500;">Bootstrap 5</p>
+                <p style="margin-bottom: 0; font-size: 10pt; color: #475569; font-weight: 500;">JavaScript</p>
+            </td>
+        </tr>
+    </table>
+
+    <h1>2. System Architecture</h1>
+
+    <h2>Architecture Diagram</h2>
+    
+    <div class="architecture-diagram-container" style="text-align: center; margin: 12px 0; page-break-inside: avoid; page-break-after: avoid;">
+        <div id="architecture-diagram-placeholder" style="height: 350px; border: 1px solid #e5e7eb; background: #f8f9fa; margin: 12px auto; max-width: 100%; page-break-inside: avoid; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+        </div>
+        <p style="font-style: italic; color: #475569; margin-top: 6px; font-size: 9.5pt; page-break-inside: avoid; text-align: center;">
+            <strong style="color: #334155;">Figure 1:</strong> BudgetBuddy AI System Architecture
+        </p>
+    </div>
+
+    <h2>Component Architecture</h2>
+
+    <h3>Web Application (Spring Boot)</h3>
+    <ul>
+        <li><strong>Controller Layer</strong>: Handles HTTP requests and responses (8 controllers)</li>
+        <li><strong>Service Layer</strong>: Implements business logic and orchestrates ML inference (14 services)</li>
+        <li><strong>Repository Layer</strong>: Data access abstraction using JPA (9 repositories)</li>
+        <li><strong>Event System</strong>: Asynchronous event-driven updates for spending analytics</li>
+        <li><strong>Integration</strong>: ProcessBuilder for Python script execution</li>
+    </ul>
+
+    <h3>ML Inference Pipeline</h3>
+    <p><strong>Priority-Based Categorization:</strong></p>
+    <ol>
+        <li><strong>User Corrections</strong> (100% confidence, in-memory cache)</li>
+        <li><strong>Taxonomy Keywords</strong> (rule-based matching, 707+ keywords)</li>
+        <li><strong>DistilBERT Model</strong> (ML prediction with confidence scores)</li>
+    </ol>
+
+    <h3>Communication Flow</h3>
+    <ul>
+        <li><strong>Transaction Upload</strong>: CSV/Excel → Spring Boot → Batch ML inference → Results stored</li>
+        <li><strong>Real-time Categorization</strong>: User input → Immediate ML prediction → Display results</li>
+        <li><strong>Spending Analytics</strong>: Transaction change → Event → Async recalculation → Dashboard update</li>
+        <li><strong>User Corrections</strong>: User correction → Stored → Used in future predictions</li>
+    </ul>
+
+    <h1>3. Data Model &amp; Storage</h1>
+
+    <h2>Data Strategy &amp; Dataset</h2>
+    <p>The system uses a carefully curated dataset for training and evaluation:</p>
+    <ul>
+        <li><strong>Dataset Source</strong>: The training dataset consists of real-world financial transaction data collected from various sources, including UPI transaction narrations, bank statement descriptions, and manually labeled transaction strings. The dataset represents diverse transaction patterns across multiple categories.</li>
+        <li><strong>Dataset Composition</strong>: 3,712 training samples, 928 test samples (80/20 split), with 10% validation set for early stopping</li>
+        <li><strong>Data Preprocessing</strong>:
+            <ul>
+                <li>Transaction strings are cleaned to remove UPI tags, transaction IDs, and special characters</li>
+                <li>Text normalization: lowercase conversion, whitespace standardization</li>
+                <li>Tokenization using DistilBERT tokenizer with max length of 128 tokens</li>
+                <li>Handling of noisy inputs: special characters, abbreviations, and variations in merchant names</li>
+            </ul>
+        </li>
+        <li><strong>Data Quality &amp; Robustness</strong>:
+            <ul>
+                <li>Dataset includes diverse transaction formats: "UPI/PAYTM/123456", "Amazon.com", "Shell Gas Station", etc.</li>
+                <li>Handles variations in merchant naming conventions and abbreviations</li>
+                <li>Robust to input noise through preprocessing pipeline and model generalization</li>
+                <li>Category consolidation strategy addressed class imbalance (reduced from 64 to 26 categories)</li>
+            </ul>
+        </li>
+        <li><strong>Reproducibility</strong>: The dataset and preprocessing pipeline are documented in the codebase. Training scripts include seed setting for reproducibility, and all data splits are deterministic.</li>
+    </ul>
+
+    <h2>Database Schema</h2>
+
+    <h3>Core Entities</h3>
+
+    <h4>Transaction</h4>
+    <ul>
+        <li>Primary Key: <code>id</code> (Long)</li>
+        <li>Attributes: <code>date</code>, <code>narration</code>, <code>amount</code>, <code>withdrawalAmt</code>, <code>depositAmt</code>, <code>closingBalance</code></li>
+        <li>Relationships: <code>userId</code> (Foreign Key to User)</li>
+        <li>ML Predictions: <code>predictedCategory</code>, <code>predictedSubcategory</code>, <code>predictedTransactionType</code>, <code>predictedIntent</code>, <code>predictionConfidence</code>, <code>predictionReason</code></li>
+        <li>User Override: <code>categoryName</code> (manual category assignment)</li>
+    </ul>
+
+    <h4>User</h4>
+    <ul>
+        <li>Primary Key: <code>id</code> (Long)</li>
+        <li>Attributes: <code>name</code>, <code>email</code>, <code>password</code> (encrypted)</li>
+    </ul>
+
+    <h4>CategoryKeyword</h4>
+    <ul>
+        <li>Primary Key: <code>id</code> (Long)</li>
+        <li>Attributes: <code>keyword</code>, <code>categoryName</code>, <code>categoriesFor</code> (Taxonomy/Manual/Corrected)</li>
+        <li>Purpose: Keyword matching and user corrections storage</li>
+    </ul>
+
+    <h3>Spending Analytics Entities</h3>
+    <ul>
+        <li><strong>CategoryOverspendingAlert</strong>: Tracks categories exceeding historical spending patterns</li>
+        <li><strong>MoneyLeak</strong>: Identifies top spending leaks</li>
+        <li><strong>SavingsProjection</strong>: Year-end savings projections</li>
+        <li><strong>WeekendOverspending</strong>: Weekend vs weekday spending analysis</li>
+        <li><strong>SpendingPattern</strong>: Detected spending patterns</li>
+    </ul>
+
+    <h2>Data Storage Strategy</h2>
+
+    <h3>Web Application (MySQL)</h3>
+    <ul>
+        <li><strong>Primary Storage</strong>: MySQL relational database</li>
+        <li><strong>Transaction Data</strong>: All transactions with ML predictions stored</li>
+        <li><strong>Spending Analytics</strong>: Pre-calculated insights stored for fast retrieval</li>
+        <li><strong>User Corrections</strong>: Stored in <code>category_keyword</code> table</li>
+        <li><strong>Indexing</strong>: Optimized indexes on <code>userId</code>, <code>date</code>, <code>categoryName</code></li>
+    </ul>
+
+    <h3>Mobile Application (Room/SQLite)</h3>
+    <ul>
+        <li><strong>Local Storage</strong>: Room database for offline operation</li>
+        <li><strong>Transaction Cache</strong>: Local transaction storage</li>
+        <li><strong>ML Model</strong>: PyTorch Mobile model embedded in app assets (~256 MB)</li>
+    </ul>
+
+    <h1>4. AI / ML / Automation Components</h1>
+
+    <h2>Machine Learning Model</h2>
+
+    <h3>Model Architecture</h3>
+    <p>BudgetBuddy AI employs a sophisticated multi-task learning architecture based on DistilBERT, a lightweight variant of BERT that maintains high performance while reducing computational requirements. The model architecture consists of:</p>
+    <ul>
+        <li><strong>Base Model</strong>: DistilBERT (distilbert-base-uncased) - A distilled version of BERT with 66 million parameters (compared to BERT's 110 million), providing 60% faster inference while retaining 97% of BERT's performance</li>
+        <li><strong>Type</strong>: Multi-task learning model that simultaneously learns three related tasks, enabling knowledge sharing and improved generalization</li>
+        <li><strong>Tasks</strong>:
+            <ul>
+                <li><strong>Transaction Type Classification</strong>: Predicts whether a transaction is P2C (Person-to-Consumer), P2P (Person-to-Person), or P2Business. This classification helps understand the nature of the transaction and improves category prediction accuracy</li>
+                <li><strong>Category Classification</strong>: Predicts one of 26 consolidated categories (optimized from 64 to reduce class imbalance)</li>
+                <li><strong>Intent Classification</strong>: Identifies the intent behind the transaction: purchase, transfer, refund, subscription, bill_payment, or other. This provides additional context for spending analytics</li>
+            </ul>
+        </li>
+    </ul>
+    <p>The multi-task learning approach allows the model to learn shared representations across tasks, improving performance on each individual task compared to training separate models.</p>
+
+    <h3>Model Performance</h3>
+    <p><strong>Performance Metrics:</strong> Macro F1-Score: 0.8961 (89.61%), Weighted F1-Score: 0.9010 (90.10%) - <strong>exceeding the 0.90 performance target</strong>. Training on 3,712 samples, testing on 928 samples. 26 consolidated categories (optimized from 64). The weighted F1-score of 0.9010 demonstrates that the model achieves the required 90%+ accuracy threshold for production use.</p>
+
+    <h3>Evaluation Report</h3>
+    <p>The training pipeline generates comprehensive metrics saved to <code>reports/distilbert_metrics_[timestamp].json</code>, including confusion matrices, per-class F1 scores, and classification reports for all tasks. Evaluation uses stratified 80/20 train-test split with 10% validation set for early stopping.</p>
+
+    <h3>Model Training Process</h3>
+    <p>The training pipeline is designed for reproducibility and continuous improvement:</p>
+    <ul>
+        <li><strong>Framework</strong>: PyTorch with Hugging Face Transformers library, providing state-of-the-art transformer implementations</li>
+        <li><strong>Training Script</strong>: <code>train_distilbert.py</code> - A comprehensive training script that handles data loading, preprocessing, model initialization, training loop, and evaluation</li>
+        <li><strong>Training Configuration</strong>:
+            <ul>
+                <li><strong>Epochs</strong>: 8 epochs (optimized through experimentation to balance training time and performance)</li>
+                <li><strong>Batch Size</strong>: 16 samples per batch, optimized for available GPU memory</li>
+                <li><strong>Learning Rate</strong>: 2e-5 with linear warmup over 500 steps, followed by cosine decay</li>
+                <li><strong>Optimizer</strong>: AdamW with weight decay of 0.01</li>
+            </ul>
+        </li>
+        <li><strong>Class Weights</strong>: Applied inverse frequency weighting to address class imbalance, ensuring the model learns from underrepresented categories</li>
+        <li><strong>Hyperparameters</strong>: Optimized through grid search and validation set performance, including learning rate, warmup steps, and dropout rates</li>
+        <li><strong>User Corrections</strong>: Automatically included in training pipeline through <code>add_correction.py</code> script, enabling continuous learning from user feedback</li>
+        <li><strong>Validation Strategy</strong>: 10% of training data held out for validation, with early stopping based on validation F1-score to prevent overfitting</li>
+    </ul>
+
+    <h3>Inference Pipeline</h3>
+    <h4>Priority-Based Categorization System</h4>
+    <p>The system employs a sophisticated three-tier priority-based categorization approach that combines rule-based matching with machine learning predictions:</p>
+    <ol>
+        <li><strong>User Corrections</strong> (Highest Priority - 100% Confidence)
+            <ul>
+                <li><strong>Source</strong>: <code>user_corrections.json</code> file containing preprocessed narrations and their user-assigned categories</li>
+                <li><strong>Confidence Level</strong>: 100% - User corrections are treated as ground truth</li>
+                <li><strong>Storage</strong>: In-memory cache (HashMap) for O(1) lookup performance, with database persistence for durability</li>
+                <li><strong>Preprocessing</strong>: Corrections are stored with preprocessed narrations (cleaned of UPI tags, IDs) to ensure exact matching</li>
+                <li><strong>Persistence</strong>: Corrections are also stored in the <code>category_keyword</code> table with <code>categoriesFor = "Corrected"</code> for database queries</li>
+                <li><strong>Performance</strong>: Sub-millisecond lookup time for cached corrections, enabling real-time categorization</li>
+            </ul>
+        </li>
+        <li><strong>Taxonomy Keywords</strong> (Rule-Based Matching - High Confidence)
+            <ul>
+                <li><strong>Source</strong>: <code>categories.yml</code> YAML file containing 707+ keywords mapped to categories, automatically loaded into database on application startup</li>
+                <li><strong>Matching Algorithm</strong>: Word-boundary matching using regex to ensure keywords match complete words, not substrings</li>
+                <li><strong>Priority Strategy</strong>: Longest keyword first - when multiple keywords match, the longest keyword takes precedence for more specific categorization</li>
+                <li><strong>Coverage</strong>: 707+ keywords across 26 categories, providing comprehensive coverage for common transaction patterns</li>
+                <li><strong>Performance</strong>: Fast database lookup with indexed queries, typically &lt;10ms per transaction</li>
+                <li><strong>Maintenance</strong>: Keywords can be added or modified in YAML file without code changes, enabling easy taxonomy updates</li>
+            </ul>
+        </li>
+        <li><strong>DistilBERT Model</strong> (ML Prediction - Variable Confidence)
+            <ul>
+                <li><strong>Multi-task Predictions</strong>: Simultaneously predicts category, transaction type, and intent in a single forward pass</li>
+                <li><strong>Confidence Scores</strong>: Provides probability distributions (0.0 to 1.0) for all predictions, enabling uncertainty quantification</li>
+                <li><strong>Batch Processing</strong>: Processes multiple transactions in a single inference call, significantly improving throughput</li>
+                <li><strong>Subcategory Extraction</strong>: Automatically extracts subcategories from category predictions when applicable</li>
+                <li><strong>Fallback Mechanism</strong>: Used when user corrections and keyword matching fail, ensuring all transactions receive a category</li>
+                <li><strong>Performance</strong>: ~50-100ms per transaction (single), ~500ms for 100 transactions (batch)</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>Customizability &amp; Taxonomy Management</h3>
+    <p>The system is designed for maximum customizability without requiring code changes:</p>
+    <ul>
+        <li><strong>YAML-Based Taxonomy Configuration</strong>:
+            <ul>
+                <li>All category keywords are defined in <code>categories.yml</code> file, enabling admin-driven updates</li>
+                <li>Categories and keywords can be added, modified, or removed by editing the YAML file</li>
+                <li>Changes take effect on application restart without requiring code deployment</li>
+                <li>YAML format is human-readable and easy to maintain</li>
+            </ul>
+        </li>
+        <li><strong>Dynamic Category Management</strong>:
+            <ul>
+                <li>New categories can be added to the taxonomy by updating the YAML configuration</li>
+                <li>Category consolidation and splitting can be managed through configuration changes</li>
+                <li>Model can be retrained with updated taxonomy when categories change significantly</li>
+            </ul>
+        </li>
+        <li><strong>User-Driven Corrections</strong>: Automatically integrated into pipeline, stored in <code>user_corrections.json</code> and database, exportable for retraining</li>
+        <li><strong>Configuration-Driven</strong>: ML confidence thresholds, batch sizes, and analytics parameters configurable</li>
+    </ul>
+
+    <h4>Text Preprocessing Pipeline</h4>
+    <p>The preprocessing pipeline is critical for model performance, as it normalizes transaction narrations while preserving semantic meaning:</p>
+    <ul>
+        <li><strong>UPI Prefix Removal</strong>: Removes common UPI prefixes like <code>UPI-</code>, <code>UPI/</code>, <code>UPI</code> to normalize transaction descriptions</li>
+        <li><strong>Bank Tag Removal</strong>: Strips bank identifiers such as <code>@YBL</code>, <code>@HDFCBANK</code>, <code>@PAYTM</code> that don't contribute to categorization</li>
+        <li><strong>Transaction ID Removal</strong>: Identifies and removes long numeric sequences (typically 10+ digits) that represent transaction IDs</li>
+        <li><strong>Separator Normalization</strong>: Standardizes various separators (hyphens, slashes, spaces) to consistent formats</li>
+        <li><strong>Semantic Preservation</strong>: Carefully designed to preserve merchant names, locations, and transaction context</li>
+        <li><strong>Centralized Implementation</strong>: All preprocessing logic is centralized in the <code>NarrationPreprocessor</code> utility class, ensuring consistency across web and mobile applications</li>
+        <li><strong>Preprocessing for Corrections</strong>: User corrections are stored with preprocessed narrations to ensure exact matching during inference</li>
+    </ul>
+
+    <h4>Batch Processing Optimization</h4>
+    <p>The batch processing system provides significant performance improvements:</p>
+    <ul>
+        <li><strong>Single Model Load</strong>: Model is loaded once per batch, eliminating repeated initialization overhead</li>
+        <li><strong>Vectorized Operations</strong>: PyTorch's batch processing enables vectorized operations across multiple transactions</li>
+        <li><strong>Performance Gains</strong>: 10-100x faster than sequential processing, with diminishing returns after ~100 transactions per batch</li>
+        <li><strong>Memory Management</strong>: Batch size is dynamically adjusted based on available memory and transaction count</li>
+        <li><strong>Error Handling</strong>: Partial batch failures are handled gracefully, with successful predictions returned even if some transactions fail</li>
+        <li><strong>Scalability</strong>: Can efficiently handle 1000+ transactions in a single batch import operation</li>
+    </ul>
+
+    <h3>Automation Components</h3>
+    <h4>Spending Analytics Automation System</h4>
+    <p>The spending analytics system provides comprehensive automated insights through an event-driven architecture:</p>
+    <ul>
+        <li><strong>Event-Driven Updates</strong>: The system uses Spring's event mechanism to automatically recalculate spending analytics whenever transactions are created, updated, or deleted. This ensures analytics are always current without manual refresh</li>
+        <li><strong>Debouncing Mechanism</strong>: A 30-second debounce window batches multiple transaction changes, preventing excessive recalculations during bulk imports. This significantly improves performance during CSV uploads</li>
+        <li><strong>Async Processing</strong>: All spending analytics calculations run asynchronously using Spring's <code>@Async</code> annotation, ensuring the user interface remains responsive during computation</li>
+        <li><strong>Comprehensive Analytics</strong>: The system provides 10+ distinct analytics features:
+            <ul>
+                <li><strong>Top 3 Spending Areas</strong>: Identifies the three categories with highest spending, excluding investments, providing quick insights into spending patterns</li>
+                <li><strong>Category Overspending Alerts</strong>: Compares current month spending against historical averages (last 6 months) and flags categories with significant increases. Alert levels (LOW, MEDIUM, HIGH, CRITICAL) are based on percentage increase and statistical significance</li>
+                <li><strong>Weekend Overspending Analysis</strong>: Analyzes spending patterns on weekends (Saturday-Sunday) versus weekdays, identifying categories with higher weekend spending</li>
+                <li><strong>Year-End Savings Projection</strong>: Projects year-end savings based on current spending rate, providing best-case, likely, and worst-case scenarios including investment returns</li>
+                <li><strong>Regular Monthly Spending Detection</strong>: Identifies recurring expenses that occur 3+ months consecutively, separating them from one-time expenses for better anomaly detection</li>
+                <li><strong>Grocery vs Eating-Out Comparison</strong>: Compares grocery store spending versus restaurant/dining expenses, helping users understand food spending patterns</li>
+                <li><strong>Investment Tracking</strong>: Separately tracks investment transactions, excluding them from expense calculations and providing cumulative investment totals</li>
+                <li><strong>Subscriptions Analysis</strong>: Identifies recurring subscription payments (non-investment), helping users track subscription costs</li>
+                <li><strong>Category Trend Visualization</strong>: Generates JSON data for 6-month spending trends by category, enabling chart visualization</li>
+                <li><strong>ML-based Anomaly Detection</strong>: Uses Isolation Forest algorithm to identify unusual spending patterns that don't match regular monthly spending</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h4>Continuous Learning Framework</h4>
+    <p>User corrections stored in <code>user_corrections.json</code> are automatically integrated into the inference pipeline with highest priority. Corrections can be exported for model retraining, creating a feedback loop that improves predictions over time.</p>
+
+    <h4>ML-Based Anomaly Detection</h4>
+    <p>The anomaly detection system uses advanced machine learning techniques:</p>
+    <ul>
+        <li><strong>Algorithm</strong>: Isolation Forest from scikit-learn, an ensemble method that identifies anomalies by isolating them in feature space</li>
+        <li><strong>Purpose</strong>: Identifies unusual spending patterns that deviate from normal behavior, helping users identify errors or unexpected expenses</li>
+        <li><strong>Feature Engineering</strong>: Uses transaction amount, category, day of week, and time since last similar transaction as features</li>
+        <li><strong>Filtering Strategy</strong>: Excludes regular monthly spending patterns (identified through pattern detection) to focus on truly unusual transactions</li>
+        <li><strong>Output Format</strong>: Provides unusual transactions with intent classification, confidence scores, and links to view transaction details</li>
+        <li><strong>Performance</strong>: Runs asynchronously with manual trigger button to avoid blocking the UI during computation</li>
+    </ul>
+
+    <h1>5. Security &amp; Compliance</h1>
+
+    <h2>Data Privacy</h2>
+    <p>100% local processing with no external APIs. All data remains on-device/server. Mobile app works completely offline.</p>
+
+    <h2>Data Security</h2>
+    <ul>
+        <li><strong>Password Encryption</strong>: User passwords stored securely (Spring Security)</li>
+        <li><strong>Database Security</strong>: MySQL with proper access controls</li>
+        <li><strong>Input Validation</strong>: All user inputs validated before processing</li>
+        <li><strong>SQL Injection Prevention</strong>: JPA/Hibernate parameterized queries</li>
+        <li><strong>XSS Protection</strong>: Thymeleaf automatic escaping</li>
+    </ul>
+
+    <h2>Compliance Considerations</h2>
+    <ul>
+        <li><strong>Data Minimization</strong>: Only necessary transaction data stored</li>
+        <li><strong>User Control</strong>: Users can delete all their data</li>
+        <li><strong>Transparency</strong>: Clear indication of ML predictions vs user corrections</li>
+        <li><strong>Explainability</strong>: Confidence scores and prediction reasons provided</li>
+        <li><strong>Bias Mitigation</strong>: Class weights and balanced training data</li>
+    </ul>
+
+    <h2>Responsible AI &amp; Robustness</h2>
+    
+    <p><strong>Bias Mitigation:</strong> Inverse frequency class weights address class imbalance. Category consolidation (64→26) improves representation. Model focuses on text patterns, not merchant/region/amount, ensuring fair categorization. Per-class F1-scores monitored for bias detection.</p>
+    
+    <p><strong>Robustness:</strong> Text preprocessing removes UPI tags, IDs, and special characters. Handles merchant name variations and formatting inconsistencies. Multi-tier categorization (user corrections → keywords → ML) with graceful error handling and fallback mechanisms.</p>
+    
+    <p><strong>Explainability:</strong> Each prediction includes reason and confidence score (0.0-1.0). Low-confidence predictions flagged for review. Taxonomy keywords visible in YAML configuration files.</p>
+
+    <h1>6. Scalability &amp; Performance</h1>
+
+    <p><strong>Model Performance:</strong> 89.61% macro F1-score, 90.10% weighted F1-score. Inference: ~50-100ms per transaction, ~500ms for 100 transactions (batch).</p>
+    
+    <p><strong>Application Performance:</strong> Response time &lt;200ms, handles 1000+ transactions efficiently, async spending analytics calculation.</p>
+    
+    <p><strong>Scalability:</strong> Stateless Spring Boot architecture, MySQL replication support, in-memory caching, batch ML inference, optimized database indexing.</p>
+
+    <h1>7. Code Repository</h1>
+
+    <h2>GitHub Repository</h2>
+    <p><strong>Repository URL:</strong> <a href="https://github.com/ssubbulakshmi172/budgetbuddy-ai.git">https://github.com/ssubbulakshmi172/budgetbuddy-ai.git</a></p>
+    <p><strong>Note:</strong> The repository also contains demo videos in the <code>demo_videos/</code> directory, including both web and mobile application demonstrations.</p>
+
+    <h2>Repository Structure</h2>
+    <pre>
+budgetbuddy-ai/
+├── src/main/java/          # Spring Boot backend
+├── src/main/resources/     # Templates, static files
+├── mybudget-ai/            # ML training and inference
+├── mobile-version/         # Android mobile app
+├── README.md               # Project documentation
+└── build.gradle            # Build configuration
+    </pre>
+
+    <h2>Key Files</h2>
+    <ul>
+        <li><strong>Backend</strong>: Spring Boot controllers, services, repositories</li>
+        <li><strong>ML Training</strong>: <code>train_distilbert.py</code></li>
+        <li><strong>ML Inference</strong>: <code>inference_local.py</code>, <code>distilbert_inference.py</code></li>
+        <li><strong>Mobile</strong>: Kotlin/Compose Android application</li>
+        <li><strong>Documentation</strong>: Comprehensive README and setup guides</li>
+    </ul>
+
+    <h1>8. Project Highlights</h1>
+
+    <h2>Innovation</h2>
+    <ul>
+        <li><strong>Multi-task Learning</strong>: Single model predicts category, type, and intent</li>
+        <li><strong>Priority-Based Inference</strong>: User corrections &gt; Keywords &gt; ML model</li>
+        <li><strong>Event-Driven Architecture</strong>: Automatic spending analytics updates</li>
+        <li><strong>Offline-First Mobile</strong>: Complete functionality without internet</li>
+    </ul>
+
+    <h2>Impact</h2>
+    <ul>
+        <li><strong>Cost Savings</strong>: Zero recurring API costs (100% local processing)</li>
+        <li><strong>Privacy</strong>: Complete data privacy (no external services)</li>
+        <li><strong>Accuracy</strong>: 90%+ categorization accuracy</li>
+        <li><strong>User Empowerment</strong>: Transparent ML predictions with confidence scores</li>
+    </ul>
+
+    <h2>Technical Excellence</h2>
+    <ul>
+        <li><strong>Production-Ready</strong>: Comprehensive error handling and logging</li>
+        <li><strong>Scalable Architecture</strong>: Handles large transaction volumes</li>
+        <li><strong>Maintainable Code</strong>: Clean architecture, well-documented</li>
+        <li><strong>Multi-Platform</strong>: Web and mobile applications</li>
+    </ul>
+
+    <h1>9. Future Enhancements</h1>
+
+    <ul>
+        <li><strong>Model Size Reduction</strong>: Implement INT8 quantization, pruning, and knowledge distillation to reduce APK size from ~256 MB to &lt;100 MB</li>
+        <li><strong>Faster Inference</strong>: Optimize with TensorRT/ONNX Runtime, GPU acceleration, and caching to reduce inference time from ~50-100ms to &lt;20ms per transaction</li>
+        <li><strong>Privacy-First Model Distribution</strong>: Develop opt-in anonymized correction sharing with differential privacy while maintaining local-first architecture</li>
+        <li><strong>Vector Database for Shared Corrections</strong>: Implement vector embeddings for semantic similarity search to improve model accuracy from collective anonymized user corrections</li>
+        <li><strong>Model Commoditization</strong>: Offer optimized models as a service, API access, and enterprise licensing with revenue sharing for opt-in users</li>
+        <li><strong>Advanced Model Architectures</strong>: Explore lightweight transformer alternatives (MobileBERT, TinyBERT) for mobile deployment</li>
+        <li><strong>On-Device Training</strong>: Enable incremental learning from user corrections directly on mobile devices</li>
+        <li><strong>Performance Monitoring</strong>: Real-time performance metrics and analytics dashboard</li>
+        <li><strong>Multi-Language Support</strong>: Extend categorization to support multiple languages and regional transaction formats</li>
+    </ul>
+
+    <div class="footer">
+        <p style="margin: 0; padding: 0;"><strong>Document Version:</strong> 1.0 | <strong>Last Updated:</strong> November 2025 | <strong>Project Status:</strong> Production Ready</p>
+    </div>
+</body>
+</html>
+

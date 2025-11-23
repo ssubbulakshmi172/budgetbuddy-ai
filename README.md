@@ -60,7 +60,7 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 
 ### Autonomous AI Categorization
 - **Multi-task DistilBERT Model**: Simultaneously predicts category, transaction type (P2C/P2P/P2Business), and intent (purchase/transfer/subscription)
-- **High Accuracy**: Achieves 0.8961 macro F1-score and 0.9010 weighted F1-score across 26 consolidated categories, **meeting the 0.90 target** (99.6% of target)
+- **High Accuracy**: Achieves 0.8961 macro F1-score and 0.9010 weighted F1-score across 26 consolidated categories
 - **Intelligent Preprocessing**: Removes transaction IDs and bank tags while preserving semantic meaning
 - **Batch Processing**: Efficiently handles multiple transactions in a single inference call
 - **Confidence Scoring**: Provides probability distributions and confidence scores for all predictions
@@ -94,6 +94,7 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 ### Multi-Platform Architecture
 - **Web Application**: Spring Boot backend with Thymeleaf UI for transaction management
 - **Android Mobile App**: On-device PyTorch Mobile inference for offline operation
+- **Room Database**: Android app uses Room (SQLite) for local data persistence and offline operation
 - **Offline-First**: Works without internet connectivity
 - **Local Inference**: No external API dependencies, ensuring privacy and zero recurring costs
 - **Virtual Environment Setup**: Mobile app uses Python venv for model conversion (ARM64 support for Apple Silicon)
@@ -114,6 +115,8 @@ The system transforms raw transaction strings (UPI narrations, bank descriptions
 - **Total Improvement**: 460% increase in Macro F1 (5.6x improvement)
 
 ## 🏗️ Architecture
+
+> **Visual Architecture Diagrams**: See `ARCHITECTURE_BETA.md` for component-focused Mermaid diagrams showing Server, Mobile, and Database architecture.
 
 ```
 ┌─────────────────────┐
@@ -174,7 +177,7 @@ budgetbuddy-ai/
 │   └── models/                       # Trained models
 │       └── distilbert_multitask_latest/
 ├── mobile-version/                    # Android app
-│   ├── app/                           # Kotlin + Compose
+│   ├── app/                           # Kotlin + Compose + Room Database
 │   └── scripts/                       # Mobile utilities
 ├── src/main/resources/templates/     # Thymeleaf UI templates
 │   └── guidance_dashboard.html       # Financial guidance dashboard
@@ -185,7 +188,7 @@ budgetbuddy-ai/
 
 - **Backend**: Spring Boot 3.x, Java 17, MySQL 8.0
 - **ML Framework**: PyTorch, Hugging Face Transformers, DistilBERT
-- **Mobile**: Android (Kotlin), Jetpack Compose, PyTorch Mobile
+- **Mobile**: Android (Kotlin), Jetpack Compose, PyTorch Mobile, Room Database (SQLite)
 - **Frontend**: Thymeleaf, Bootstrap 5
 
 ## 📋 Prerequisites

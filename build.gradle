@@ -38,4 +38,8 @@ dependencies {
 
 	// Additional schemas required by Apache POI for complex Excel files
 	implementation group: 'org.apache.poi', name: 'poi-ooxml-schemas', version: '4.1.2'
+
+	// OpenHTMLToPDF for HTML to PDF conversion
+	implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+	implementation 'com.openhtmltopdf:openhtmltopdf-svg-support:1.0.10'
 }

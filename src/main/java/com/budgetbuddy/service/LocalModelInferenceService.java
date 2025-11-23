@@ -38,10 +38,10 @@ public class LocalModelInferenceService {
      */
     @PostConstruct
     public void init() {
-        System.out.println("✅ LocalModelInferenceService initialized");
+        logger.info("✅ LocalModelInferenceService initialized");
         // Python command configuration loaded (not logged for security)
-        System.out.println("   Inference script: " + inferenceScriptPath);
-        System.out.println("   Timeout: " + timeoutSeconds + " seconds");
+        logger.info("   Inference script: {}", inferenceScriptPath);
+        logger.info("   Timeout: {} seconds", timeoutSeconds);
         
         // Verify script exists
         String projectRoot = System.getProperty("user.dir");
@@ -52,9 +52,9 @@ public class LocalModelInferenceService {
         
         java.io.File scriptFile = new java.io.File(scriptPath);
         if (scriptFile.exists()) {
-            System.out.println("   ✅ Script found: " + scriptPath);
+            logger.info("   ✅ Script found: {}", scriptPath);
         } else {
-            System.err.println("   ⚠️ Script not found: " + scriptPath);
+            logger.warn("   ⚠️ Script not found: {}", scriptPath);
         }
     }
 
@@ -73,7 +73,7 @@ public class LocalModelInferenceService {
             PredictionResult result = predictFull(description);
             return result.getPredictedCategory();
         } catch (Exception e) {
-            System.err.println("⚠️ Error in local inference: " + e.getMessage());
+            logger.error("⚠️ Error in local inference", e);
             return "Uncategorized";
         }
     }
@@ -314,8 +314,7 @@ public class LocalModelInferenceService {
             return results;
             
         } catch (Exception e) {
-            System.err.println("⚠️ Error in batch inference: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("⚠️ Error in batch inference", e);
             // Return Uncategorized for all
             java.util.List<PredictionResult> results = new java.util.ArrayList<>();
             for (int i = 0; i < descriptions.size(); i++) {
@@ -380,7 +379,7 @@ public class LocalModelInferenceService {
                         output.append(line);
                     } else {
                         // Log warnings but don't include in JSON parsing
-                        System.out.println("Python output (non-JSON): " + line);
+                        logger.debug("Python output (non-JSON): {}", line);
                     }
                 }
             }
@@ -395,7 +394,7 @@ public class LocalModelInferenceService {
                         errorOutput.append(line).append("\n");
                     }
                 } catch (Exception e) {
-                    System.err.println("Error reading stderr: " + e.getMessage());
+                    logger.error("Error reading stderr", e);
                 }
             });
             errorReaderThread.start();
@@ -424,7 +423,7 @@ public class LocalModelInferenceService {
                     .replaceAll("python.*-u.*\\n", "")  // Remove python command lines
                     .replaceAll("/Users/.*?/", "***/");  // Sanitize paths
                 if (!filteredError.trim().isEmpty()) {
-                    System.out.println("Python stderr: " + filteredError);
+                    logger.debug("Python stderr: {}", filteredError);
                 }
             }
 
@@ -447,18 +446,18 @@ public class LocalModelInferenceService {
                         }
                         
                         jsonResponse = new JSONObject(jsonOnly);
-                        System.out.println("✅ Successfully parsed JSON from Python output");
+                        logger.debug("✅ Successfully parsed JSON from Python output");
                     }
                 } catch (Exception e) {
-                    System.err.println("⚠️ Failed to parse JSON: " + jsonOutput);
-                    System.err.println("Parse error: " + e.getMessage());
+                    logger.warn("⚠️ Failed to parse JSON: {}", jsonOutput);
+                    logger.warn("Parse error: {}", e.getMessage());
                 }
             }
             
             // If we successfully parsed JSON, use it even if exit code is non-zero
             if (jsonResponse != null && jsonResponse.has("predicted_category")) {
                 // Valid JSON with prediction - proceed normally
-                System.out.println("✅ Got valid prediction JSON (exit code: " + exitCode + ")");
+                logger.debug("✅ Got valid prediction JSON (exit code: {})", exitCode);
             } else if (exitCode != 0) {
                 // Exit code is non-zero AND we don't have valid JSON - this is an error
                 String errorMsg = "Inference script exited with code: " + exitCode;
@@ -485,23 +484,23 @@ public class LocalModelInferenceService {
                     .replaceAll("Command:.*\\n", "")
                     .replaceAll("python.*-u.*\\n", "")
                     .replaceAll("/Users/.*?/", "***/");
-                System.err.println("⚠️ Empty output from inference script. Error output: " + filteredError);
+                logger.error("⚠️ Empty output from inference script. Error output: {}", filteredError);
                 throw new RuntimeException("Empty output from inference script");
             } else if (jsonResponse == null) {
                 // We have output but couldn't parse it
-                System.err.println("⚠️ No JSON found in output: " + jsonOutput);
+                logger.error("⚠️ No JSON found in output: {}", jsonOutput);
                 // Filter command details from error output
                 String filteredError = errorOutput.toString()
                     .replaceAll("Command:.*\\n", "")
                     .replaceAll("python.*-u.*\\n", "")
                     .replaceAll("/Users/.*?/", "***/");
-                System.err.println("Error output: " + filteredError);
+                logger.error("Error output: {}", filteredError);
                 throw new RuntimeException("No JSON found in inference output");
             }
 
             // Check for error
             if (jsonResponse.has("error")) {
-                System.err.println("⚠️ Inference error: " + jsonResponse.getString("error"));
+                logger.error("⚠️ Inference error: {}", jsonResponse.getString("error"));
             }
 
             // Extract results
@@ -528,9 +527,7 @@ public class LocalModelInferenceService {
             return new PredictionResult(category, subcategory, transactionType, intent, confidence, reason, keywordMatched);
 
         } catch (Exception e) {
-            System.err.println("⚠️ Error in local inference: " + e.getMessage());
-            System.err.println("Exception type: " + e.getClass().getSimpleName());
-            e.printStackTrace();
+            logger.error("⚠️ Error in local inference. Exception type: {}", e.getClass().getSimpleName(), e);
             return new PredictionResult("Uncategorized", null, null, null, 0.0, "error", false);
         }
     }

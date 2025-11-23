@@ -121,5 +121,12 @@ DEMO_VIDEO_QUICK_STEPS.md
 # Recording scripts
 demo_ui_recording.sh
 record_with_ffmpeg.sh
+record_android_emulator.sh
+# Demo automation scripts
+count_pdf_words.py
+demo_android_automation.py
+demo_mobile_automation.py
 # Setup docs
 mobile-version/SETUP_AND_DEBUG.md
+# Generated PDF documents
+submission_document.pdf

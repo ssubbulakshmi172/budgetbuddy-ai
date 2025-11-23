@@ -621,8 +621,10 @@ public class TransactionController {
 
         try {
             jsonCategoryMonthSums = objectMapper.writeValueAsString(categoryMonthSums);
+        try {
+            jsonCategoryMonthSums = objectMapper.writeValueAsString(categoryMonthSums);
         } catch (Exception e) {
-            System.err.println("Error serializing categoryMonthSums: " + e.getMessage());
+            logger.error("Error serializing categoryMonthSums", e);
         }
 
 // Add the serialized JSON to the model
